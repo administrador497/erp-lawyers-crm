@@ -3,6 +3,11 @@ import Link from "next/link";
 // A real not-found.tsx, instead of relying on Next's auto-generated
 // default one — that internal fallback is what breaks the build for
 // /404 and /_not-found (see app/page.tsx for the full explanation).
+//
+// force-dynamic here too: pulls the internal /_not-found route out of
+// next build's static-prerender pool, same reasoning as app/page.tsx.
+export const dynamic = "force-dynamic";
+
 export default function NotFound() {
   return (
     <div
