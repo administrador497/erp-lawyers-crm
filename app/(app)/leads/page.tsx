@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { formatIngreso, priorityStyle } from "@/lib/format";
-import { useToast } from "@/components/useToast";
-import ToastHost from "@/components/ToastHost";
-import type { AssignableUsuario, NewLeadRow } from "@/lib/types";
+import { createClient } from "../../../lib/supabase/client";
+import { formatIngreso, priorityStyle } from "../../../lib/format";
+import { useToast } from "../../../components/useToast";
+import ToastHost from "../../../components/ToastHost";
+import type { AssignableUsuario, NewLeadRow } from "../../../lib/types";
 
 export default function LeadsInboxPage() {
   const router = useRouter();

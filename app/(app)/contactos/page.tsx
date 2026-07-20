@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { formatCurrency, formatIngreso, priorityStyle } from "@/lib/format";
-import { useToast } from "@/components/useToast";
-import ToastHost from "@/components/ToastHost";
-import type { ContactDetail, ContactListRow, HistorialItem } from "@/lib/types";
+import { createClient } from "../../../lib/supabase/client";
+import { formatCurrency, formatIngreso, priorityStyle } from "../../../lib/format";
+import { useToast } from "../../../components/useToast";
+import ToastHost from "../../../components/ToastHost";
+import type { ContactDetail, ContactListRow, HistorialItem } from "../../../lib/types";
 
 async function authedFetch(path: string, init: RequestInit = {}) {
   const supabase = createClient();

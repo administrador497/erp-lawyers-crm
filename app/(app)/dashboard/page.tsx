@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { formatIngreso } from "@/lib/format";
-import type { DashboardSummary } from "@/lib/types";
+import { createClient } from "../../../lib/supabase/client";
+import { formatIngreso } from "../../../lib/format";
+import type { DashboardSummary } from "../../../lib/types";
 
 async function authedFetch(path: string, init: RequestInit = {}) {
   const supabase = createClient();

@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { formatCurrency } from "@/lib/format";
-import { useToast } from "@/components/useToast";
-import ToastHost from "@/components/ToastHost";
-import type { EtapaRow, MotivoPerdidaRow, PipelineLeadRow } from "@/lib/types";
+import { createClient } from "../../../lib/supabase/client";
+import { formatCurrency } from "../../../lib/format";
+import { useToast } from "../../../components/useToast";
+import ToastHost from "../../../components/ToastHost";
+import type { EtapaRow, MotivoPerdidaRow, PipelineLeadRow } from "../../../lib/types";
 
 const ETAPA_PERDIDO = "Perdido";
 

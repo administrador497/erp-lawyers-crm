@@ -1,6 +1,6 @@
-import AppShell from "@/components/AppShell";
-import { initialsFromName } from "@/lib/currentUser";
-import { requireActiveSession } from "@/lib/authGuard";
+import AppShell from "../../components/AppShell";
+import { initialsFromName } from "../../lib/currentUser";
+import { requireActiveSession } from "../../lib/authGuard";
 
 // cookies() already forces dynamic rendering in Next 14, but this is
 // explicit and rules out any doubt that a cached render (with a stale or

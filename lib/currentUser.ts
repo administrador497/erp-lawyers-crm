@@ -1,5 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
-import type { CurrentUsuario } from "@/lib/types";
+import { createClient } from "./supabase/server";
+import type { CurrentUsuario } from "./types";
 
 export async function getCurrentUsuario(): Promise<CurrentUsuario | null> {
   const supabase = await createClient();

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "../../lib/supabase/client";
 
 const ACCOUNT_ERROR_MESSAGES: Record<string, string> = {
   cuenta_inactiva: "Su cuenta está inactiva. Contacte al administrador.",

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
-import { getCurrentUsuario } from "@/lib/currentUser";
-import type { CurrentUsuario } from "@/lib/types";
+import { getCurrentUsuario } from "./currentUser";
+import type { CurrentUsuario } from "./types";
 
 // Route protection used to live in middleware.ts, but the Next.js 14 Edge
 // runtime it depends on hits "EvalError: Code generation from strings

@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { formatIngreso } from "@/lib/format";
-import { useToast } from "@/components/useToast";
-import ToastHost from "@/components/ToastHost";
-import type { ActividadRow, ContactListRow } from "@/lib/types";
+import { createClient } from "../../../lib/supabase/client";
+import { formatIngreso } from "../../../lib/format";
+import { useToast } from "../../../components/useToast";
+import ToastHost from "../../../components/ToastHost";
+import type { ActividadRow, ContactListRow } from "../../../lib/types";
 
 const TIPOS = [
   { value: "llamada", label: "Llamada" },

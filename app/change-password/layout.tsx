@@ -1,4 +1,4 @@
-import { requireForcedPasswordChange } from "@/lib/authGuard";
+import { requireForcedPasswordChange } from "../../lib/authGuard";
 
 export const dynamic = "force-dynamic";
 

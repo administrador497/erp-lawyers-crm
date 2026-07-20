@@ -2,11 +2,11 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { formatIngreso } from "@/lib/format";
-import { useToast } from "@/components/useToast";
-import ToastHost from "@/components/ToastHost";
-import type { ConversacionRow, MensajeRow } from "@/lib/types";
+import { createClient } from "../../../lib/supabase/client";
+import { formatIngreso } from "../../../lib/format";
+import { useToast } from "../../../components/useToast";
+import ToastHost from "../../../components/ToastHost";
+import type { ConversacionRow, MensajeRow } from "../../../lib/types";
 
 const CANAL_LABEL: Record<string, string> = {
   correo: "Correo",

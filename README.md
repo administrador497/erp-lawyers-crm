@@ -19,6 +19,8 @@ CRM omnicanal para centralizar contactos, leads y comunicaciones (WordPress, cor
 
 **Los 9 módulos del sidebar están completos.** Todo pasa por Netlify Functions con la service role key y permisos por rol verificados en el backend — el prototipo `.dc.html` queda solo como referencia visual histórica.
 
+**Nota — sin alias `@/`, a propósito:** todos los imports en `app/`, `components/` y `lib/` usan rutas relativas (`../../lib/format`, no `@/lib/format`). El alias `@/*` funcionaba en `next dev`/`netlify dev` pero el build de producción en Netlify fallaba con `Module not found: Can't resolve '@/...'` en todas las páginas de `app/(app)/` sin que se pudiera aislar la causa exacta pese a varias rondas de diagnóstico (tsconfig verificado, sin colisiones de mayúsculas, sin caché vieja, versión de Node corregida). Se optó por eliminar la dependencia del alias en vez de seguir buscando la causa raíz. `tsconfig.json` ya no declara `baseUrl`/`paths` — si agregas un archivo nuevo, usa rutas relativas (`../lib/...`, `./...`), no `@/...`.
+
 Ver `SETUP.md` sección 0 para correrlo localmente y sección 1 para el orden completo de migraciones (`001` a `009`).
 
 ## About the design files

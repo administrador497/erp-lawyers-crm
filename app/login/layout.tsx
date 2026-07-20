@@ -1,4 +1,4 @@
-import { redirectIfAlreadyAuthenticated } from "@/lib/authGuard";
+import { redirectIfAlreadyAuthenticated } from "../../lib/authGuard";
 
 export const dynamic = "force-dynamic";
 
