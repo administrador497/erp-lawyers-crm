@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Public Sans',sans-serif;}
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-thumb{background:#B8AA91;border-radius:4px;}
+@keyframes toastIn{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+a{color:{{ theme.blue }};text-decoration:none;}
+a:hover{text-decoration:underline;}
+</style>
+</helmet>
+
+<div style="width:100%;min-height:100vh;background:{{ theme.bg }};color:{{ theme.text }};font-family:'Public Sans',sans-serif;">
+
+<sc-if value="{{ isLogin }}" hint-placeholder-val="{{ false }}">
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:{{ theme.bg }};">
+  <div style="width:380px;background:{{ theme.panel }};border:1px solid {{ theme.border }};border-radius:2px;padding:40px 36px;box-shadow:0 20px 50px rgba(0,0,0,0.15);">
+    <img src="assets/logo-erp.png" alt="ERP Lawyers & Associates" style="width:120px;display:block;margin:0 auto 28px;" />
+    <div style="font-family:'Source Serif 4',serif;font-size:22px;font-weight:600;text-align:center;margin-bottom:4px;">CRM Omnicanal</div>
+    <div style="font-size:13px;color:{{ theme.muted }};text-align:center;margin-bottom:28px;">Acceso exclusivo para colaboradores</div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:{{ theme.muted }};margin-bottom:6px;">Correo electrónico</div>
+        <input type="email" value="{{ loginEmail }}" onChange="{{ onLoginEmail }}" placeholder="nombre@erplawyers.com" style="width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid {{ theme.border }};border-radius:2px;background:{{ theme.bg }};color:{{ theme.text }};font-size:14px;" />
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:{{ theme.muted }};margin-bottom:6px;">Contraseña</div>
+        <input type="password" value="{{ loginPassword }}" onChange="{{ onLoginPassword }}" placeholder="••••••••" style="width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid {{ theme.border }};border-radius:2px;background:{{ theme.bg }};color:{{ theme.text }};font-size:14px;" />
+      </div>
+      <sc-if value="{{ hasLoginError }}" hint-placeholder-val="{{ false }}">
+        <div style="font-size:12.5px;color:{{ theme.red }};">{{ loginError }}</div>
+      </sc-if>
+      <button onClick="{{ doLogin }}" style="margin-top:6px;padding:12px;background:{{ theme.red }};color:#fff;border:none;border-radius:2px;font-size:14px;font-weight:600;cursor:pointer;">Ingresar</button>
+      <div style="text-align:center;font-size:12.5px;color:{{ theme.muted }};margin-top:6px;">¿Olvidó su contraseña? <a href="#">Recuperar acceso</a></div>
+    </div>
+    <div style="margin-top:26px;padding-top:18px;border-top:1px solid {{ theme.border }};font-size:11px;color:{{ theme.muted }};text-align:center;">Usuarios de prueba: bayron@erplawyers.com · ERPLaw.1122</div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isForceChange }}" hint-placeholder-val="{{ false }}">
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:{{ theme.bg }};">
+  <div style="width:400px;background:{{ theme.panel }};border:1px solid {{ theme.border }};border-radius:2px;padding:40px 36px;box-shadow:0 20px 50px rgba(0,0,0,0.15);">
+    <div style="font-family:'Source Serif 4',serif;font-size:20px;font-weight:600;margin-bottom:6px;">Cambio de contraseña obligatorio</div>
+    <div style="font-size:13px;color:{{ theme.muted }};margin-bottom:24px;">Por seguridad, defina una nueva contraseña antes de continuar.</div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:{{ theme.muted }};margin-bottom:6px;">Nueva contraseña</div>
+        <input type="password" value="{{ newPass1 }}" onChange="{{ onNewPass1 }}" style="width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid {{ theme.border }};border-radius:2px;background:{{ theme.bg }};color:{{ theme.text }};font-size:14px;" />
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:{{ theme.muted }};margin-bottom:6px;">Confirmar nueva contraseña</div>
+        <input type="password" value="{{ newPass2 }}" onChange="{{ onNewPass2 }}" style="width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid {{ theme.border }};border-radius:2px;background:{{ theme.bg }};color:{{ theme.text }};font-size:14px;" />
+      </div>
+      <sc-if value="{{ hasChangeError }}" hint-placeholder-val="{{ false }}">
+        <div style="font-size:12.5px;color:{{ theme.red }};">{{ changeError }}</div>
+      </sc-if>
+      <button onClick="{{ doChangePassword }}" style="margin-top:6px;padding:12px;background:{{ theme.blue }};color:#fff;border:none;border-radius:2px;font-size:14px;font-weight:600;cursor:pointer;">Confirmar y continuar</button>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isApp }}" hint-placeholder-val="{{ false }}">
+<div style="display:grid;grid-template-columns:236px 1fr;min-height:100vh;">
+
+  <div style="background:{{ theme.sidebarBg }};padding:22px 16px;display:flex;flex-direction:column;gap:4px;">
+    <div style="display:flex;align-items:center;gap:10px;padding:0 6px 20px;border-bottom:1px solid #3A362F;margin-bottom:16px;">
+      <img src="assets/logo-erp.png" style="width:34px;height:34px;object-fit:contain;" />
+      <div style="color:#fff;font-family:'Source Serif 4',serif;font-size:14px;font-weight:600;line-height:1.2;">ERP Lawyers<br/><span style="color:{{ theme.tan }};font-weight:400;font-size:11px;">CRM Omnicanal</span></div>
+    </div>
+    <sc-for list="{{ navItems }}" as="item" hint-placeholder-count="10">
+      <div onClick="{{ item.onClick }}" style="padding:10px 12px;border-radius:2px;font-size:13.5px;font-weight:500;cursor:pointer;color:{{ item.color }};background:{{ item.bg }};display:flex;align-items:center;justify-content:space-between;">
+        <span>{{ item.label }}</span>
+        <sc-if value="{{ item.hasBadge }}" hint-placeholder-val="{{ false }}"><span style="background:{{ theme.red }};color:#fff;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:10px;">{{ item.badge }}</span></sc-if>
+      </div>
+    </sc-for>
+    <div style="margin-top:auto;padding-top:16px;border-top:1px solid #3A362F;display:flex;align-items:center;gap:8px;">
+      <div style="width:30px;height:30px;border-radius:50%;background:{{ theme.red }};color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">{{ currentUser.initials }}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="color:#fff;font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ currentUser.name }}</div>
+        <div style="color:{{ theme.tan }};font-size:11px;">{{ currentUser.role }}</div>
+      </div>
+      <div onClick="{{ doLogout }}" title="Cerrar sesión" style="color:{{ theme.tan }};font-size:11px;cursor:pointer;">Salir</div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;min-height:100vh;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 28px;border-bottom:1px solid {{ theme.border }};background:{{ theme.panel }};">
+      <div style="font-family:'Source Serif 4',serif;font-size:19px;font-weight:600;">{{ viewTitle }}</div>
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div onClick="{{ toggleDark }}" style="font-size:12.5px;color:{{ theme.muted }};cursor:pointer;border:1px solid {{ theme.border }};padding:6px 12px;border-radius:2px;">{{ darkModeLabel }}</div>
+        <div style="font-size:12.5px;color:{{ theme.muted }};">{{ todayLabel }}</div>
+      </div>
+    </div>
+
+    <div style="flex:1;padding:26px 28px;overflow:auto;">
+
+    <sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;gap:10px;margin-bottom:22px;">
+        <div onClick="{{ setDashGeneral }}" style="padding:8px 16px;border-radius:2px;font-size:13px;font-weight:600;cursor:pointer;background:{{ dashGeneralBg }};color:{{ dashGeneralColor }};">Vista general</div>
+        <div onClick="{{ setDashPersonal }}" style="padding:8px 16px;border-radius:2px;font-size:13px;font-weight:600;cursor:pointer;background:{{ dashPersonalBg }};color:{{ dashPersonalColor }};">Mi actividad</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:26px;">
+        <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="4">
+          <div style="background:{{ theme.panel }};border:1px solid {{ theme.border }};border-radius:2px;padding:18px;">
+            <div style="font-size:12px;color:{{ theme.muted }};margin-bottom:8px;">{{ k.label }}</div>
+            <div style="font-family:'Source Serif 4',serif;font-size:28px;font-weight:600;">{{ k.value }}</div>
+            <div style="font-size:11.5px;color:{{ k.deltaColor }};margin-top:4px;">{{ k.delta }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:20px;">
+        <div style="background:{{ theme.panel }};border:1px solid {{ theme.border }};border-radius:2px;padding:20px;">
+          <div style="font-size:14px;font-weight:600;margin-bottom:14px;">Actividad reciente</div>
+          <sc-for list="{{ recentActivity }}" as="a" hint-placeholder-count="5">
+            <div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid {{ theme.border }};">
+              <div style="width:6px;height:6px;border-radius:50%;background:{{ theme.blue }};margin-top:6px;flex-shrink:0;"></div>
+              <div style="flex:1;">
+                <div style="font-size:13px;">{{ a.text }}</div>
+                <div style="font-size:11.5px;color:{{ theme.muted }};margin-top:2px;">{{ a.when }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="background:{{ theme.panel }};border:1px solid {{ theme.border }};border-radius:2px;padding:20px;">
+          <div style="font-size:14px;font-weight:600;margin-bottom:14px;">Próximas actividades</div>
+          <sc-for list="{{ upcomingShort }}" as="u" hint-placeholder-count="4">
+            <div style="padding:10px 0;border-bottom:1px solid {{ theme.border }};">
+              <div style="font-size:13px;font-weight:500;">{{ u.title }}</div>
+              <div style="font-size:11.5px;color:{{ theme.muted }};margin-top:2px;">{{ u.leadName }} · {{ u.when }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isNewLeads }}" hint-placeholder-val="{{ false }}">
+      <div style="font-size:13px;color:{{ theme.muted }};margin-bottom:16px;">Todo lead nuevo ingresa aquí asignado inicialmente a Bayron. Asigne o responda sin salir de esta pantalla.</div>
+      <div style="background:{{ theme.panel }};border:1px solid {{ theme.border }};border-radius:2px;overflow:hidden;">
+        <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr 0.8fr 1.3fr;gap:8px;padding:12px 16px;font-size:11.5px;font-weight:700;color:{{ theme.muted }};text-transform:uppercase;letter-spacing:0.03em;background:{{ theme.panel2 }};">
+          <div>Contacto</div><div>Canal / Origen</div><div>Servicio</div><div>Ingresó</div><div>Prioridad</div><div>Acción</div>
+        </div>
+        <sc-for list="{{ newLeads }}" as="l" hint-placeholder-count="3">
+          <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr 0.8fr 1.3fr;gap:8px;padding:14px 16px;border-top:1px solid {{ theme.border }};align-items:center;">
+            <div>
+              <div style="font-size:13.5px;font-weight:600;">{{ l.name }}</div>
+              <div style="font-size:11.5px;color:{{ theme.muted }};">{{ l.email }} · {{ l.phone }}</div>
+            </div>
+            <div style="font-size:12.5px;">{{ l.channel }}</div>
+            <div style="font-size:12.5px;">{{ l.service }}</div>
+            <div style="font-size:12.5px;color:{{ theme.muted }};">{{ l.dateIn }}</div>
+            <div><span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:10px;background:{{ l.prioBg }};color:{{ l.prioColor }};">{{ l.priority }}</span></div>
+            <div style="display:flex;gap:6px;">
+              <select onChange="{{ l.onAssign }}" style="font-size:12px;padding:6px 8px;border:1px solid {{ theme.border }};border-radius:2px;background:{{ theme.bg }};color:{{ theme.text }};">
+                <option value="">Asignar a…</option>
+                <sc-for list="{{ users }}" as="u" hint-placeholder-count="4"><option value="{{ u.id }}">{{ u.name }}</option></sc-for>
+              </select>
+              <button onClick="{{ l.onOpenInbox }}" style="font-size:12px;padding:6px 10px;border:none;border-radius:2px;background:{{ theme.red }};color:#fff;cursor:pointer;">Responder</button>
+            </div>
+          </div>
+        </sc-for>
+        <sc-if value="{{ noNewLeads }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:30px 16px;text-align:center;color:{{ theme.muted }};font-size:13px;">No hay leads pendientes de asignación.</div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isInbox }}" hint-placeholder-val="{{ false }}">
+      <div style="display:grid;grid-template-columns:300px 1fr;gap:0;background:{{ theme.panel }};border:1px solid {{ theme.border }};border-radius:2px;height:calc(100vh - 170px);overflow:hidden;">
+        <div style="border-right:1px solid {{ theme.border }};overflow:auto;">
+          <sc-for list="{{ conversations }}" as="c" hint-placeholder-count="6">
+            <div onClick="{{ c.onSelect }}" style="padding:13px 16px;border-bottom:1px solid {{ theme.border }};cursor:pointer;background:{{ c.bg }};">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                <div style="font-size:13px;font-weight:600;">{{ c.name }}</div>
+                <div style="font-size:10.5px;color:{{ theme.muted }};">{{ c.channelIcon }}</div>
+              </div>
+              <div style="font-size:12px;color:{{ theme.muted }};margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ c.lastMsg }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;flex-direction:column;">
+          <div style="padding:14px 20px;border-bottom:1px solid {{ theme.border }};display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:14.5px;font-weight:700;">{{ activeConv.name }}</div>
+              <div style="font-size:11.5px;color:{{ theme.muted }};">{{ activeConv.service }} · Responsable: {{ activeConv.assignedName }}</div>
+            </div>
+            <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:{{ activeConv.prioBg }};color:{{ activeConv.prioColor }};">{{ activeConv.stage }}</span>
+          </div>
+          <div style="flex:1;overflow:auto;padding:18px 20px;display:flex;flex-direction:column;gap:12px;">
+            <sc-for list="{{ activeConv.messages }}" as="m" hint-placeholder-count="3">
+              <div style="max-width:70%;align-self:{{ m.align }};background:{{ m.bg }};color:{{ m.color }};border-radius:6px;padding:10px 14px;">
+                <div style="font-size:12.5px;">{{ m.body }}</div>
+                <div style="font-size:10px;opacity:0.75;margin-top:5px;">{{ m.channel }} · {{ m.date }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="padding:14px 20px;border-top:1px solid {{ theme.border }};display:flex;gap:10px;">
+            <select value="{{ replyChannel }}" onChange="{{ onReplyChannel }}" style="font-size:12px;padding:0 8px;border:1px solid {{ theme.border }};border-radius:2px;background:{{ theme.bg }};color:{{ theme.text }};">
+              <option value="Correo">Correo</option>
+              <option value="WhatsApp">WhatsApp</option>
+            </select>
+            <input value="{{ replyText }}" onChange="{{ onReplyText }}" placeholder="Escriba una respuesta…" style="flex:1;padding:10px 12px;border:1px solid {{ theme.border }};border-radius:2px;background:{{ theme.bg }};color:{{ theme.text }};font-size:13px;" />
+            <button onClick="{{ sendReply }}" style="padding:10px 18px;border:none;border-radius:2px;background:{{ theme.red }};color:#fff;font-weight:600;font-size:13px;cursor:pointer;">Enviar</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isContact }}" hint-placeholder-val="{{ false }}">
+      <div style="display:grid;grid-template-columns:280px 1fr;gap:20px;">
+        <div style="background:{{ theme.panel }};border:1px solid {{ theme.border }};border-radius:2px;overflow:hidden;height:fit-content;">
+          <sc-for list="{{ leads }}" as="l" hint-placeholder-count="6">
+            <div onClick="{{ l.onSelectContact }}" style="padding:12px 16px;border-bottom:1px solid {{ theme.border }};cursor:pointer;background:{{ l.contactBg }};">
+              <div style="font-size:13px;font-weight:600;">{{ l.name }}</div>
+              <div style="font-size:11.5px;color:{{ theme.muted }};">{{ l.service }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="background:{{ theme.panel }};border:1px solid {{ theme.border }};border-radius:2px;padding:24px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;">
+            <div>
+              <div style="font-family:'Source Serif 4',serif;font-size:20px;font-weight:600;">{{ activeLead.name }}</div>
+              <div style="font-size:12.5px;color:{{ theme.muted }};margin-top:4px;">{{ activeLead.service }} · {{ activeLead.country }}</div>
+            </div>
+            <span style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:10px;background:{{ activeLead.prioBg }};color:{{ activeLead.prioColor }};">{{ activeLead.stage }}</span>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:18px;">
+            <div onClick="{{ setTabInfo }}" style="padding:7px 14px;font-size:12.5px;font-weight:600;cursor:pointer;border-radius:2px;background:{{ tabInfoBg }};color:{{ tabInfoColor }};">Información</div>
+            <div onClick="{{ setTabTimeline }}" style="padding:7px 14px;font-size:12.5px;font-weight:600;cursor:pointer;border-radius:2px;background:{{ tabTimelineBg }};color:{{ tabTimelineColor }};">Historial</div>
+          </div>
+          <sc-if value="{{ contactTabIsInfo }}" hint-placeholder-val="{{ true }}">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px 28px;">
+              <sc-for list="{{ activeLead.fields }}" as="f" hint-placeholder-count="8">
+                <div>
+                  <div style="font-size:11px;color:{{ theme.muted }};text-transform:uppercase;letter-spacing:0.03em;margin-bottom:4px;">{{ f.label }}</div>
+                  <div style="font-size:13.5px;">{{ f.value }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ contactTabIsTimeline }}" hint-placeholder-val="{{ false }}">
+            <div>
+              <sc-for list="{{ activeLead.timeline }}" as="t" hint-placeholder-count="5">
+                <div style="display:flex;gap:12px;padding:11px 0;border-bottom:1px solid {{ theme.border }};">
+                  <div style="font-size:11.5px;color:{{ theme.muted }};width:120px;flex-shrink:0;">{{ t.when }}</div>
+                  <div style="font-size:13px;">{{ t.text }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isPipeline }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;gap:14px;overflow-x:auto;padding-bottom:10px;">
+        <sc-for list="{{ stages }}" as="s" hint-placeholder-count="6">
+          <div onDragOver="{{ onDragOver }}" onDrop="{{ s.onDrop }}" style="min-width:230px;background:{{ theme.panel2 }};border-radius:2px;padding:12px;flex-shrink:0;">
+            <div style="font-size:12.5px;font-weight:700;margin-bottom:10px;display:flex;justify-content:space-between;">
+              <span>{{ s.name }}</span><span style="color:{{ theme.muted }};">{{ s.count }}</span>
+            </div>
+            <sc-for list="{{ s.cards }}" as="c" hint-placeholder-count="2">
+              <div draggable="true" onDragStart="{{ c.onDragStart }}" style="background:{{ theme.panel }};border:1px solid {{ theme.border }};border-radius:2px;padding:11px;margin-bottom:8px;cursor:grab;">
+                <div style="font-size:12.5px;font-weight:600;">{{ c.name }}</div>
+                <div style="font-size:11px;color:{{ theme.muted }};margin-top:3px;">{{ c.service }}</div>
+                <div style="font-size:11px;color:{{ theme.blue }};margin-top:5px;font-weight:600;">{{ c.value }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isCalendar }}" hint-placeholder-val="{{ false }}">
+      <div style="background:{{ theme.panel }};border:1px solid {{ theme.border }};border-radius:2px;padding:8px 0;">
+        <sc-for list="{{ activities }}" as="a" hint-placeholder-count="6">
+          <div style="display:grid;grid-template-columns:120px 1fr 140px;gap:14px;align-items:center;padding:13px 20px;border-bottom:1px solid {{ theme.border }};">
+            <div style="font-size:12.5px;color:{{ theme.muted }};">{{ a.when }}</div>
+            <div>
+              <div style="font-size:13.5px;font-weight:600;text-decoration:{{ a.strike }};">{{ a.title }}</div>
+              <div style="font-size:11.5px;color:{{ theme.muted }};margin-top:2px;">{{ a.leadName }} · {{ a.type }}</div>
+            </div>
+            <div style="text-align:right;">
+              <button onClick="{{ a.onToggle }}" style="font-size:12px;padding:6px 12px;border:1px solid {{ theme.border }};border-radius:2px;background:{{ a.btnBg }};color:{{ a.btnColor }};cursor:pointer;">{{ a.btnLabel }}</button>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isForms }}" hint-placeholder-val="{{ false }}">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div style="background:{{ theme.panel }};border:1px solid {{ theme.border }};border-radius:2px;padding:20px;">
+          <div style="font-size:14px;font-weight:600;margin-bottom:14px;">Campos del formulario — Consulta general</div>
+          <sc-for list="{{ formFields }}" as="f" hint-placeholder-count="5">
+            <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid {{ theme.border }};">
+              <div style="flex:1;font-size:13px;">{{ f.label }}</div>
+              <span style="font-size:10.5px;color:{{ theme.muted }};border:1px solid {{ theme.border }};padding:2px 8px;border-radius:10px;">{{ f.type }}</span>
+              <sc-if value="{{ f.required }}" hint-placeholder-val="{{ false }}"><span style="font-size:10.5px;color:{{ theme.red }};font-weight:700;">requerido</span></sc-if>
+              <div onClick="{{ f.onRemove }}" style="cursor:pointer;color:{{ theme.muted }};font-size:13px;">✕</div>
+            </div>
+          </sc-for>
+          <button onClick="{{ addFormField }}" style="margin-top:14px;padding:9px 16px;border:1px dashed {{ theme.border }};border-radius:2px;background:none;color:{{ theme.blue }};font-size:12.5px;font-weight:600;cursor:pointer;">+ Agregar campo</button>
+        </div>
+        <div style="background:{{ theme.panel }};border:1px solid {{ theme.border }};border-radius:2px;padding:20px;">
+          <div style="font-size:14px;font-weight:600;margin-bottom:14px;">Vista previa</div>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <sc-for list="{{ formFields }}" as="f" hint-placeholder-count="5">
+              <div>
+                <div style="font-size:12px;font-weight:600;color:{{ theme.muted }};margin-bottom:5px;">{{ f.label }}</div>
+                <input placeholder="{{ f.placeholder }}" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid {{ theme.border }};border-radius:2px;background:{{ theme.bg }};color:{{ theme.text }};font-size:13px;" />
+              </div>
+            </sc-for>
+            <button style="margin-top:6px;padding:11px;background:{{ theme.red }};color:#fff;border:none;border-radius:2px;font-weight:600;font-size:13px;">Enviar consulta</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isReports }}" hint-placeholder-val="{{ false }}">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div style="background:{{ theme.panel }};border:1px solid {{ theme.border }};border-radius:2px;padding:20px;">
+          <div style="font-size:14px;font-weight:600;margin-bottom:18px;">Leads por canal</div>
+          <div style="display:flex;align-items:flex-end;gap:18px;height:160px;">
+            <sc-for list="{{ channelBars }}" as="b" hint-placeholder-count="4">
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;">
+                <div style="font-size:11.5px;font-weight:700;">{{ b.value }}</div>
+                <div style="width:100%;background:{{ theme.blue }};border-radius:2px 2px 0 0;height:{{ b.height }};"></div>
+                <div style="font-size:11px;color:{{ theme.muted }};">{{ b.label }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="background:{{ theme.panel }};border:1px solid {{ theme.border }};border-radius:2px;padding:20px;">
+          <div style="font-size:14px;font-weight:600;margin-bottom:18px;">Embudo de conversión</div>
+          <sc-for list="{{ funnel }}" as="f" hint-placeholder-count="5">
+            <div style="margin-bottom:10px;">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span>{{ f.label }}</span><span style="color:{{ theme.muted }};">{{ f.value }}</span></div>
+              <div style="background:{{ theme.panel2 }};border-radius:2px;height:10px;"><div style="width:{{ f.pct }};background:{{ theme.red }};height:100%;border-radius:2px;"></div></div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="background:{{ theme.panel }};border:1px solid {{ theme.border }};border-radius:2px;padding:20px;grid-column:span 2;">
+          <div style="font-size:14px;font-weight:600;margin-bottom:14px;">Cumplimiento de SLA por usuario</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;">
+            <sc-for list="{{ slaByUser }}" as="s" hint-placeholder-count="4">
+              <div>
+                <div style="font-size:12.5px;font-weight:600;">{{ s.name }}</div>
+                <div style="font-family:'Source Serif 4',serif;font-size:22px;font-weight:600;margin-top:4px;">{{ s.pct }}</div>
+                <div style="font-size:11px;color:{{ theme.muted }};">tiempo prom. respuesta {{ s.avg }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isUsers }}" hint-placeholder-val="{{ false }}">
+      <div style="background:{{ theme.panel }};border:1px solid {{ theme.border }};border-radius:2px;overflow:hidden;">
+        <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr 0.8fr 0.8fr;gap:8px;padding:12px 16px;font-size:11.5px;font-weight:700;color:{{ theme.muted }};text-transform:uppercase;background:{{ theme.panel2 }};">
+          <div>Usuario</div><div>Correo</div><div>Rol</div><div>Estado</div><div>Acción</div>
+        </div>
+        <sc-for list="{{ userRows }}" as="u" hint-placeholder-count="4">
+          <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr 0.8fr 0.8fr;gap:8px;padding:13px 16px;border-top:1px solid {{ theme.border }};align-items:center;">
+            <div style="font-size:13px;font-weight:600;">{{ u.name }}</div>
+            <div style="font-size:12.5px;color:{{ theme.muted }};">{{ u.email }}</div>
+            <div style="font-size:12.5px;">{{ u.role }}</div>
+            <div><span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:10px;background:{{ u.statusBg }};color:{{ u.statusColor }};">{{ u.status }}</span></div>
+            <div style="font-size:12px;color:{{ theme.blue }};cursor:pointer;">Editar</div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}">
+  <div style="position:fixed;bottom:24px;right:24px;background:{{ theme.text }};color:{{ theme.bg }};padding:12px 20px;border-radius:2px;font-size:13px;font-weight:500;animation:toastIn 0.25s ease;box-shadow:0 10px 30px rgba(0,0,0,0.25);">{{ toast }}</div>
+</sc-if>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const USERS = [
+  {id:'bayron', name:'Bayron Alpízar Araya', email:'bayron@erplawyers.com', role:'Administrador general', initials:'BA'},
+  {id:'juancarlos', name:'Juan Carlos Rojas Piedra', email:'juancarlos@erplawyers.com', role:'Usuario estándar', initials:'JC'},
+  {id:'jose', name:'José Martín Azofeifa Rodríguez', email:'jose@erplawyers.com', role:'Usuario estándar', initials:'JM'},
+  {id:'maisha', name:'Maisha Mattis Byfield', email:'maisha@erplawyers.com', role:'Usuario estándar', initials:'MM'},
+];
+
+const STAGE_ORDER = ['Nuevo','Primer contacto','Calificado','Propuesta enviada','Negociación','Contratado','Seguimiento futuro','Perdido'];
+
+function initLeads(){
+  return [
+    {id:'l1', name:'Rodrigo Salazar Méndez', email:'rodrigo.salazar@gmail.com', phone:'+506 8812 3344', country:'Costa Rica', channel:'WordPress', service:'Derecho Corporativo', dateIn:'Hoy, 08:12', stage:'Nuevo', assignedTo:null, priority:'Alta', value:'₡2.400.000',
+      messages:[{channel:'Correo', from:'contact', body:'Buenos días, necesito asesoría para constituir una sociedad anónima.', date:'08:12'}],
+      timeline:[{when:'Hoy 08:12','text':'Lead creado desde formulario WordPress.'}]},
+    {id:'l2', name:'Ana Lucía Vargas Solís', email:'analucia.vargas@hotmail.com', phone:'+506 8734 5521', country:'Costa Rica', channel:'WhatsApp', service:'Derecho de Familia', dateIn:'Hoy, 09:47', stage:'Nuevo', assignedTo:null, priority:'Media', value:'₡900.000',
+      messages:[{channel:'WhatsApp', from:'contact', body:'Hola, quisiera información sobre trámite de divorcio.', date:'09:47'}],
+      timeline:[{when:'Hoy 09:47','text':'Lead creado desde WhatsApp.'}]},
+    {id:'l3', name:'Michael Thompson', email:'mthompson@outlook.com', phone:'+1 305 220 8871', country:'Estados Unidos', channel:'Correo', service:'Migración', dateIn:'Ayer, 17:03', stage:'Nuevo', assignedTo:null, priority:'Alta', value:'₡1.600.000',
+      messages:[{channel:'Correo', from:'contact', body:'I would like help with residency in Costa Rica.', date:'17:03'}],
+      timeline:[{when:'Ayer 17:03','text':'Lead creado por correo entrante.'}]},
+    {id:'l4', name:'Karla Jiménez Alvarado', email:'karla.jimenez@empresacr.com', phone:'+506 8899 2210', country:'Costa Rica', channel:'Formulario CRM', service:'Propiedad Intelectual', dateIn:'Lun 08:30', stage:'Primer contacto', assignedTo:'juancarlos', priority:'Media', value:'₡1.100.000',
+      messages:[{channel:'Correo', from:'contact', body:'Necesito registrar una marca comercial.', date:'Lun 08:30'},{channel:'Correo', from:'user', body:'Buen día Karla, con gusto la asesoramos. ¿Podría indicarnos el nombre de la marca?', date:'Lun 09:05'}],
+      timeline:[{when:'Lun 08:30','text':'Lead creado.'},{when:'Lun 09:05','text':'Primer contacto realizado por Juan Carlos.'}]},
+    {id:'l5', name:'Grupo Inmobiliario del Este S.A.', email:'contacto@inmobiliariaeste.cr', phone:'+506 2233 4455', country:'Costa Rica', channel:'Manual', service:'Bienes Raíces', dateIn:'Vie 14:00', stage:'Calificado', assignedTo:'jose', priority:'Alta', value:'₡5.200.000',
+      messages:[{channel:'Correo', from:'contact', body:'Requerimos due diligence para compra de terreno.', date:'Vie 14:00'},{channel:'Correo', from:'user', body:'Con gusto, adjunto propuesta de honorarios preliminar.', date:'Vie 16:20'}],
+      timeline:[{when:'Vie 14:00','text':'Lead creado.'},{when:'Vie 16:20','text':'Marcado como calificado por José Martín.'}]},
+    {id:'l6', name:'Fernando Castro Ureña', email:'fcastro@gmail.com', phone:'+506 8123 9087', country:'Costa Rica', channel:'WhatsApp', service:'Derecho Laboral', dateIn:'Jue 11:15', stage:'Propuesta enviada', assignedTo:'maisha', priority:'Media', value:'₡760.000',
+      messages:[{channel:'WhatsApp', from:'contact', body:'Fui despedido sin liquidación, ¿me pueden ayudar?', date:'Jue 11:15'},{channel:'WhatsApp', from:'user', body:'Claro Fernando, le compartimos nuestra propuesta de representación.', date:'Jue 15:40'}],
+      timeline:[{when:'Jue 11:15','text':'Lead creado.'},{when:'Jue 15:40','text':'Propuesta enviada por Maisha.'}]},
+    {id:'l7', name:'Constructora Los Robles Ltda.', email:'administracion@losrobles.cr', phone:'+506 2244 7788', country:'Costa Rica', channel:'WordPress', service:'Derecho Tributario', dateIn:'Mar 10:00', stage:'Negociación', assignedTo:'bayron', priority:'Alta', value:'₡3.100.000',
+      messages:[{channel:'Correo', from:'contact', body:'Estamos revisando su propuesta, tenemos algunas preguntas.', date:'Mar 10:00'}],
+      timeline:[{when:'Mar 10:00','text':'En negociación de honorarios.'}]},
+    {id:'l8', name:'Priscilla Mora Rojas', email:'priscilla.mora@gmail.com', phone:'+506 8877 1122', country:'Costa Rica', channel:'Formulario CRM', service:'Derecho Penal', dateIn:'Hace 3 semanas', stage:'Contratado', assignedTo:'jose', priority:'Alta', value:'₡2.000.000',
+      messages:[{channel:'Correo', from:'contact', body:'Gracias por el acompañamiento, procedamos.', date:'Hace 3 semanas'}],
+      timeline:[{when:'Hace 3 semanas','text':'Contrato firmado.'}]},
+    {id:'l9', name:'Diego Herrera Solano', email:'diego.herrera@yahoo.com', phone:'+506 8955 3321', country:'Costa Rica', channel:'Correo', service:'Derecho Corporativo', dateIn:'Hace 2 meses', stage:'Perdido', assignedTo:'juancarlos', priority:'Baja', value:'₡500.000',
+      messages:[{channel:'Correo', from:'contact', body:'Decidimos posponer el proyecto.', date:'Hace 2 meses'}],
+      timeline:[{when:'Hace 2 meses','text':'Marcado como perdido: presupuesto pospuesto.'}]},
+  ];
+}
+
+function initActivities(){
+  return [
+    {id:'a1', title:'Llamada de seguimiento', leadId:'l4', leadName:'Karla Jiménez Alvarado', when:'Hoy 14:00', type:'Llamada', done:false},
+    {id:'a2', title:'Enviar propuesta formal', leadId:'l5', leadName:'Grupo Inmobiliario del Este', when:'Hoy 16:30', type:'Documento', done:false},
+    {id:'a3', title:'Reunión de negociación', leadId:'l7', leadName:'Constructora Los Robles', when:'Mañana 10:00', type:'Reunión', done:false},
+    {id:'a4', title:'Confirmar recepción de documentos', leadId:'l6', leadName:'Fernando Castro Ureña', when:'Mañana 09:00', type:'Seguimiento', done:false},
+    {id:'a5', title:'Revisión inicial de lead', leadId:'l1', leadName:'Rodrigo Salazar Méndez', when:'Hoy 08:30', type:'Revisión', done:true},
+    {id:'a6', title:'Confirmar cita de consulta', leadId:'l2', leadName:'Ana Lucía Vargas Solís', when:'Viernes 11:00', type:'Cita', done:false},
+  ];
+}
+
+function initFormFields(){
+  return [
+    {id:'f1', label:'Nombre completo', type:'texto', required:true, placeholder:'Nombre y apellidos'},
+    {id:'f2', label:'Correo electrónico', type:'correo', required:true, placeholder:'nombre@correo.com'},
+    {id:'f3', label:'Teléfono / WhatsApp', type:'teléfono', required:true, placeholder:'+506 8000 0000'},
+    {id:'f4', label:'Servicio de interés', type:'selección', required:true, placeholder:'Seleccione un servicio'},
+    {id:'f5', label:'Descripción de la consulta', type:'texto largo', required:false, placeholder:'Cuéntenos brevemente su caso'},
+  ];
+}
+
+class Component extends DCLogic {
+  state = {
+    screen: 'login',
+    loginEmail: '', loginPassword: '', loginError: '',
+    newPass1: '', newPass2: '', changeError: '',
+    darkMode: false,
+    currentUserId: 'bayron',
+    activeView: 'newLeads',
+    dashboardTab: 'general',
+    leads: initLeads(),
+    inboxSelectedId: 'l4',
+    contactSelectedId: 'l4',
+    contactTab: 'info',
+    replyText: '', replyChannel: 'Correo',
+    dragLeadId: null,
+    activities: initActivities(),
+    formFields: initFormFields(),
+    toast: null,
+  };
+
+  fmtToday(){
+    return new Date().toLocaleDateString('es-CR', {weekday:'long', day:'numeric', month:'long'});
+  }
+
+  showToast(msg){
+    this.setState({toast: msg});
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(()=>this.setState({toast:null}), 2600);
+  }
+
+  doLogin = () => {
+    const u = USERS.find(u => u.email.toLowerCase() === this.state.loginEmail.trim().toLowerCase());
+    if (!u) { this.setState({loginError:'Correo no reconocido.'}); return; }
+    if (this.state.loginPassword !== 'ERPLaw.1122') { this.setState({loginError:'Contraseña incorrecta.'}); return; }
+    this.setState({currentUserId: u.id, screen:'forceChange', loginError:''});
+  };
+
+  doChangePassword = () => {
+    if (!this.state.newPass1 || this.state.newPass1.length < 8) { this.setState({changeError:'La contraseña debe tener al menos 8 caracteres.'}); return; }
+    if (this.state.newPass1 !== this.state.newPass2) { this.setState({changeError:'Las contraseñas no coinciden.'}); return; }
+    this.setState({screen:'app', changeError:''});
+  };
+
+  doLogout = () => this.setState({screen:'login', loginEmail:'', loginPassword:'', loginError:''});
+  toggleDark = () => this.setState(s => ({darkMode: !s.darkMode}));
+  setView = (v) => () => this.setState({activeView: v});
+  setDashGeneral = () => this.setState({dashboardTab:'general'});
+  setDashPersonal = () => this.setState({dashboardTab:'personal'});
+  setTabInfo = () => this.setState({contactTab:'info'});
+  setTabTimeline = () => this.setState({contactTab:'timeline'});
+
+  assignLead = (leadId, userId) => {
+    if (!userId) return;
+    const u = USERS.find(x=>x.id===userId);
+    this.setState(s => ({leads: s.leads.map(l => l.id===leadId ? {...l, assignedTo:userId, stage:'Primer contacto'} : l)}));
+    this.showToast(`Lead asignado a ${u.name}.`);
+  };
+
+  onDragOverHandler = (e) => e.preventDefault();
+  onDragStartLead = (leadId) => (e) => this.setState({dragLeadId: leadId});
+  onDropStage = (stageName) => (e) => {
+    e.preventDefault();
+    const id = this.state.dragLeadId;
+    if (!id) return;
+    this.setState(s => ({leads: s.leads.map(l => l.id===id ? {...l, stage: stageName} : l), dragLeadId:null}));
+    this.showToast(`Movido a "${stageName}".`);
+  };
+
+  sendReply = () => {
+    if (!this.state.replyText.trim()) return;
+    const text = this.state.replyText;
+    this.setState(s => ({
+      leads: s.leads.map(l => l.id===s.inboxSelectedId ? {...l, messages:[...l.messages, {channel:s.replyChannel, from:'user', body:text, date:'ahora'}]} : l),
+      replyText:''
+    }));
+    this.showToast('Mensaje enviado.');
+  };
+
+  addFormField = () => {
+    const n = this.state.formFields.length+1;
+    this.setState(s => ({formFields:[...s.formFields, {id:'f'+Date.now(), label:'Campo nuevo '+n, type:'texto', required:false, placeholder:'Escriba aquí'}]}));
+  };
+  removeField = (id) => () => this.setState(s => ({formFields: s.formFields.filter(f=>f.id!==id)}));
+  toggleActivity = (id) => () => this.setState(s => ({activities: s.activities.map(a=>a.id===id?{...a,done:!a.done}:a)}));
+
+  renderVals() {
+    const s = this.state;
+    const dark = s.darkMode;
+    const theme = {
+      bg: dark ? '#141311' : '#FAF8F5',
+      panel: dark ? '#1D1B18' : '#FFFFFF',
+      panel2: dark ? '#26221C' : '#F2ECE2',
+      border: dark ? '#3A362F' : '#E5DFD3',
+      text: dark ? '#F2EEE6' : '#211F1C',
+      muted: dark ? '#B8AA91' : '#7A7266',
+      red: '#CE192B',
+      blue: '#3349AA',
+      tan: '#B8AA91',
+      cream: '#DBD3C8',
+      sidebarBg: '#1D1B18',
+    };
+
+    const currentUser = USERS.find(u=>u.id===s.currentUserId) || USERS[0];
+    const leads = s.leads;
+    const newLeads = leads.filter(l => !l.assignedTo);
+
+    const NAV = [
+      {key:'dashboard', label:'Panel General'},
+      {key:'newLeads', label:'Nuevos leads', badgeCount: newLeads.length},
+      {key:'inbox', label:'Bandeja omnicanal'},
+      {key:'contact', label:'Contactos / Leads'},
+      {key:'pipeline', label:'Pipeline'},
+      {key:'calendar', label:'Calendario y actividades'},
+      {key:'forms', label:'Formularios'},
+      {key:'reports', label:'Reportes'},
+      {key:'users', label:'Usuarios y roles'},
+    ];
+    const navItems = NAV.map(n => ({
+      label: n.label,
+      onClick: this.setView(n.key),
+      bg: s.activeView===n.key ? theme.red : 'transparent',
+      color: s.activeView===n.key ? '#fff' : theme.cream,
+      hasBadge: !!n.badgeCount,
+      badge: n.badgeCount,
+    }));
+    const viewTitleMap = {dashboard:'Panel General', newLeads:'Nuevos leads por asignar', inbox:'Bandeja omnicanal', contact:'Contactos y leads', pipeline:'Pipeline de oportunidades', calendar:'Calendario y actividades', forms:'Constructor de formularios', reports:'Reportes', users:'Usuarios y roles'};
+
+    const prioStyle = (p) => p==='Alta' ? {bg:'#FBE1E4', color:'#B0132A'} : p==='Media' ? {bg:'#FDF1DC', color:'#946A1A'} : {bg:'#E4E9F5', color:'#3349AA'};
+
+    const newLeadsRows = newLeads.map(l => {
+      const ps = prioStyle(l.priority);
+      return {...l, prioBg: ps.bg, prioColor: ps.color,
+        onAssign: (e) => this.assignLead(l.id, e.target.value),
+        onOpenInbox: () => this.setState({activeView:'inbox', inboxSelectedId: l.id})};
+    });
+
+    const kpisGeneral = [
+      {label:'Leads recibidos (mes)', value: String(leads.length), delta:'+3 esta semana', deltaColor: theme.blue},
+      {label:'Tiempo prom. 1ra respuesta', value:'2h 40m', delta:'dentro de SLA', deltaColor:'#1E8A4C'},
+      {label:'Tasa de conversión', value:'34%', delta:'+4% vs mes anterior', deltaColor:'#1E8A4C'},
+      {label:'Leads sin seguimiento', value: String(leads.filter(l=>!l.assignedTo).length), delta:'requieren atención', deltaColor: theme.red},
+    ];
+    const kpisPersonal = [
+      {label:'Mis leads activos', value: String(leads.filter(l=>l.assignedTo===currentUser.id).length), delta:'asignados a mí', deltaColor: theme.blue},
+      {label:'Mis tareas hoy', value: String(s.activities.filter(a=>a.when.startsWith('Hoy')).length), delta:'pendientes', deltaColor: theme.red},
+      {label:'Mi tiempo de respuesta', value:'1h 55m', delta:'por debajo del promedio', deltaColor:'#1E8A4C'},
+      {label:'Mis conversiones (mes)', value:'5', delta:'contratados', deltaColor:'#1E8A4C'},
+    ];
+
+    const recentActivity = leads.slice().reverse().slice(0,5).map(l => ({text:`${l.name} — ${l.timeline[l.timeline.length-1].text}`, when: l.timeline[l.timeline.length-1].when}));
+    const upcomingShort = s.activities.filter(a=>!a.done).slice(0,4).map(a=>({title:a.title, leadName:a.leadName, when:a.when}));
+
+    const activeConvLead = leads.find(l=>l.id===s.inboxSelectedId) || leads[0];
+    const conversations = leads.map(l => ({
+      name: l.name,
+      channelIcon: l.channel,
+      lastMsg: l.messages[l.messages.length-1].body,
+      bg: l.id===s.inboxSelectedId ? theme.panel2 : 'transparent',
+      onSelect: () => this.setState({inboxSelectedId: l.id}),
+    }));
+    const convPrio = prioStyle(activeConvLead.priority);
+    const activeConv = {
+      name: activeConvLead.name, service: activeConvLead.service,
+      assignedName: activeConvLead.assignedTo ? USERS.find(u=>u.id===activeConvLead.assignedTo).name : 'Sin asignar',
+      stage: activeConvLead.stage, prioBg: convPrio.bg, prioColor: convPrio.color,
+      messages: activeConvLead.messages.map(m => ({
+        body: m.body, channel: m.channel, date: m.date,
+        align: m.from==='user' ? 'flex-end' : 'flex-start',
+        bg: m.from==='user' ? theme.blue : theme.panel2,
+        color: m.from==='user' ? '#fff' : theme.text,
+      })),
+    };
+
+    const activeLeadC = leads.find(l=>l.id===s.contactSelectedId) || leads[0];
+    const contactPrio = prioStyle(activeLeadC.priority);
+    const activeLead = {
+      name: activeLeadC.name, service: activeLeadC.service, country: activeLeadC.country, stage: activeLeadC.stage,
+      prioBg: contactPrio.bg, prioColor: contactPrio.color,
+      fields: [
+        {label:'Correo electrónico', value: activeLeadC.email},
+        {label:'Teléfono / WhatsApp', value: activeLeadC.phone},
+        {label:'Canal de origen', value: activeLeadC.channel},
+        {label:'Servicio de interés', value: activeLeadC.service},
+        {label:'Responsable', value: activeLeadC.assignedTo ? USERS.find(u=>u.id===activeLeadC.assignedTo).name : 'Sin asignar'},
+        {label:'Prioridad', value: activeLeadC.priority},
+        {label:'Valor potencial', value: activeLeadC.value},
+        {label:'Fecha de ingreso', value: activeLeadC.dateIn},
+      ],
+      timeline: activeLeadC.timeline,
+    };
+    const leadsForContactList = leads.map(l => ({name:l.name, service:l.service, id:l.id,
+      contactBg: l.id===s.contactSelectedId ? theme.panel2 : 'transparent',
+      onSelectContact: () => this.setState({contactSelectedId: l.id})}));
+
+    const stages = STAGE_ORDER.map(stageName => {
+      const cards = leads.filter(l=>l.stage===stageName).map(l => ({name:l.name, service:l.service, value:l.value, onDragStart:this.onDragStartLead(l.id)}));
+      return {name: stageName, count: cards.length, cards, onDrop: this.onDropStage(stageName)};
+    });
+
+    const activityRows = s.activities.slice().sort((a,b)=> a.done - b.done).map(a => ({
+      ...a, strike: a.done ? 'line-through' : 'none',
+      btnLabel: a.done ? 'Reabrir' : 'Completar',
+      btnBg: a.done ? 'transparent' : theme.red,
+      btnColor: a.done ? theme.muted : '#fff',
+      onToggle: this.toggleActivity(a.id),
+    }));
+
+    const formFieldsRows = s.formFields.map(f => ({...f, onRemove: this.removeField(f.id)}));
+
+    const channelCounts = {};
+    leads.forEach(l => channelCounts[l.channel] = (channelCounts[l.channel]||0)+1);
+    const maxCount = Math.max(...Object.values(channelCounts), 1);
+    const channelBars = Object.entries(channelCounts).map(([label,value]) => ({label, value, height: Math.round(value/maxCount*130)+'px'}));
+
+    const funnel = [
+      {label:'Nuevo', value: leads.filter(l=>l.stage==='Nuevo').length},
+      {label:'Primer contacto', value: leads.filter(l=>l.stage==='Primer contacto').length},
+      {label:'Calificado', value: leads.filter(l=>l.stage==='Calificado').length},
+      {label:'Propuesta enviada', value: leads.filter(l=>l.stage==='Propuesta enviada').length},
+      {label:'Contratado', value: leads.filter(l=>l.stage==='Contratado').length},
+    ].map(f => ({...f, pct: Math.round(f.value/leads.length*100)+'%'}));
+
+    const slaByUser = USERS.map(u => ({name:u.name, pct: Math.round(80+Math.random()*15)+'%', avg: (1+Math.random()*2).toFixed(1)+'h'}));
+
+    const userRows = USERS.map(u => ({...u, status:'Activo', statusBg:'#E1F0E5', statusColor:'#1E8A4C'}));
+
+    return {
+      theme,
+      isLogin: s.screen==='login', isForceChange: s.screen==='forceChange', isApp: s.screen==='app',
+      loginEmail: s.loginEmail, loginPassword: s.loginPassword, loginError: s.loginError, hasLoginError: !!s.loginError,
+      onLoginEmail: (e)=>this.setState({loginEmail:e.target.value}), onLoginPassword: (e)=>this.setState({loginPassword:e.target.value}),
+      doLogin: this.doLogin,
+      newPass1: s.newPass1, newPass2: s.newPass2, changeError: s.changeError, hasChangeError: !!s.changeError,
+      onNewPass1: (e)=>this.setState({newPass1:e.target.value}), onNewPass2: (e)=>this.setState({newPass2:e.target.value}),
+      doChangePassword: this.doChangePassword, doLogout: this.doLogout,
+      darkModeLabel: dark ? '☾ Modo oscuro' : '☀ Modo claro', toggleDark: this.toggleDark,
+      todayLabel: this.fmtToday(),
+      currentUser, navItems, viewTitle: viewTitleMap[s.activeView],
+      isDashboard: s.activeView==='dashboard', isNewLeads: s.activeView==='newLeads', isInbox: s.activeView==='inbox',
+      isContact: s.activeView==='contact', isPipeline: s.activeView==='pipeline', isCalendar: s.activeView==='calendar',
+      isForms: s.activeView==='forms', isReports: s.activeView==='reports', isUsers: s.activeView==='users',
+      dashGeneralBg: s.dashboardTab==='general'?theme.red:'transparent', dashGeneralColor: s.dashboardTab==='general'?'#fff':theme.muted,
+      dashPersonalBg: s.dashboardTab==='personal'?theme.red:'transparent', dashPersonalColor: s.dashboardTab==='personal'?'#fff':theme.muted,
+      setDashGeneral: this.setDashGeneral, setDashPersonal: this.setDashPersonal,
+      kpis: s.dashboardTab==='general' ? kpisGeneral : kpisPersonal, recentActivity, upcomingShort,
+      newLeads: newLeadsRows, noNewLeads: newLeadsRows.length===0, users: USERS,
+      conversations, activeConv, replyChannel: s.replyChannel, replyText: s.replyText,
+      onReplyChannel: (e)=>this.setState({replyChannel:e.target.value}), onReplyText: (e)=>this.setState({replyText:e.target.value}), sendReply: this.sendReply,
+      leads: leadsForContactList, activeLead,
+      tabInfoBg: s.contactTab==='info'?theme.red:'transparent', tabInfoColor: s.contactTab==='info'?'#fff':theme.muted,
+      tabTimelineBg: s.contactTab==='timeline'?theme.red:'transparent', tabTimelineColor: s.contactTab==='timeline'?'#fff':theme.muted,
+      setTabInfo: this.setTabInfo, setTabTimeline: this.setTabTimeline,
+      contactTabIsInfo: s.contactTab==='info', contactTabIsTimeline: s.contactTab==='timeline',
+      stages, onDragOver: this.onDragOverHandler,
+      activities: activityRows,
+      formFields: formFieldsRows, addFormField: this.addFormField,
+      channelBars, funnel, slaByUser, userRows,
+      hasToast: !!s.toast, toast: s.toast,
+    };
+  }
+}
+
+</script>
+</body>
+</html>

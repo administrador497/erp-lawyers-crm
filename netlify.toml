@@ -1,0 +1,39 @@
+[build]
+  command = "npm run build"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[functions]
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+# Content-Security-Policy is intentionally NOT set here. netlify.toml
+# [[headers]] has no supported per-context variant — [context.X] blocks can
+# only override command/publish/functions/environment, never headers — so a
+# strict script-src here would apply identically to `netlify dev` and to
+# production, breaking Next.js's dev-mode eval()-based HMR/Fast Refresh
+# (EvalError, broken hydration, forms silently falling back to native
+# submission). The CSP lives in next.config.mjs's headers() instead, which
+# can branch on NODE_ENV: relaxed (absent) in dev, strict in production —
+# and still applies correctly once deployed, since @netlify/plugin-nextjs
+# runs Next's own request handling (including headers()) as-is.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+
+# Deploy previews and branch deploys use the same build settings by default.
+# Set environment-specific vars (SUPABASE keys, WhatsApp tokens) per context
+# in the Netlify UI: Site settings > Environment variables > scope per context.

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Public Sans',sans-serif;}
+h1,h2,h3{font-family:'Source Serif 4',serif;color:#211F1C;}
+h1{font-size:30px;margin:0 0 6px;}
+h2{font-size:20px;margin:34px 0 10px;border-bottom:2px solid #CE192B;padding-bottom:6px;}
+h3{font-size:15px;margin:20px 0 8px;color:#3349AA;}
+p,li{font-size:13px;line-height:1.55;color:#3A362F;}
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin:10px 0;}
+th{background:#F2ECE2;text-align:left;padding:7px 10px;font-size:11.5px;text-transform:uppercase;letter-spacing:0.02em;color:#7A7266;}
+td{padding:7px 10px;border-top:1px solid #E5DFD3;vertical-align:top;}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:10px;}
+.tag-mvp{background:#FBE1E4;color:#B0132A;}
+.tag-f2{background:#FDF1DC;color:#946A1A;}
+.tag-f3{background:#E4E9F5;color:#3349AA;}
+.pill{background:#F2ECE2;border:1px solid #E5DFD3;border-radius:2px;padding:12px 16px;margin:8px 0;}
+</style>
+</helmet>
+<x-import component-from-global-scope="doc-page" from="./doc-page.js" size="letter" margin="0.85in" hint-size="850px,1100px">
+
+<div style="display:flex;align-items:center;gap:14px;margin-bottom:4px;">
+  <img src="assets/logo-erp.png" style="width:52px;height:52px;object-fit:contain;" />
+  <div>
+    <h1>CRM Omnicanal — Blueprint técnico y funcional</h1>
+    <p style="margin:0;color:#7A7266;">ERP Lawyers &amp; Associates · Preparado para despliegue en Netlify · Julio 2026</p>
+  </div>
+</div>
+
+<h2>1. Resumen ejecutivo</h2>
+<p>Este documento define la propuesta funcional y técnica de un CRM omnicanal para ERP Lawyers &amp; Associates, construido a partir del manual de marca de la firma. Centraliza contactos, leads, oportunidades y comunicaciones (WordPress, correo, WhatsApp, formularios propios) en una sola bandeja de trabajo, con asignación automática a Bayron Alpízar Araya para todo lead nuevo, trazabilidad completa y reportes de desempeño.</p>
+<p><strong>Alcance de esta entrega:</strong> blueprint completo (este documento) + prototipo interactivo de alta fidelidad de las pantallas prioritarias (<code>CRM ERP Lawyers.dc.html</code>) con datos simulados. La construcción del backend real (base de datos, autenticación, integraciones oficiales de correo/WhatsApp, funciones serverless) requiere un ciclo de desarrollo aparte; la sección 7 detalla la arquitectura recomendada y el paquete de handoff necesario para ese desarrollo.</p>
+
+<h2>2. Usuarios iniciales</h2>
+<table>
+<tr><th>Nombre</th><th>Correo</th><th>Rol inicial</th><th>Contraseña temporal</th></tr>
+<tr><td>Bayron Alpízar Araya</td><td>bayron@erplawyers.com</td><td>Administrador general — responsable inicial de todo lead nuevo</td><td>ERPLaw.1122</td></tr>
+<tr><td>Juan Carlos Rojas Piedra</td><td>juancarlos@erplawyers.com</td><td>Usuario estándar</td><td>ERPLaw.1122</td></tr>
+<tr><td>José Martín Azofeifa Rodríguez</td><td>jose@erplawyers.com</td><td>Usuario estándar</td><td>ERPLaw.1122</td></tr>
+<tr><td>Maisha Mattis Byfield</td><td>maisha@erplawyers.com</td><td>Usuario estándar</td><td>ERPLaw.1122</td></tr>
+</table>
+<p>Todo usuario inicia sesión con su correo, debe cambiar la contraseña temporal en el primer ingreso y verificar su correo antes de acceder al resto del sistema. Ningún usuario no-administrador puede modificar su propio rol o ampliar sus permisos.</p>
+
+<h2>3. Regla central de asignación</h2>
+<div class="pill">Todo lead nuevo — sin importar el canal de origen (WordPress, formulario del CRM, correo, WhatsApp, registro manual, importación, campaña) — se crea con estado <strong>"Nuevo"</strong>, se asigna automáticamente a <strong>Bayron Alpízar Araya</strong>, dispara una notificación dentro del CRM y un correo a bayron@erplawyers.com, y aparece en la bandeja <strong>"Nuevos leads por asignar"</strong>. Desde ahí Bayron responde personalmente o reasigna sin salir de la pantalla.</div>
+
+<h2>4. Identidad visual aplicada</h2>
+<table>
+<tr><th>Elemento del manual</th><th>Aplicación en el CRM</th></tr>
+<tr><td>Rojo corporativo #CE192B</td><td>Acciones primarias, alertas de prioridad alta, indicador activo de navegación</td></tr>
+<tr><td>Azul #3349AA (extensión)</td><td>No definido explícitamente para pantallas de producto en el manual; se adopta como color de acento funcional (enlaces, datos, estados informativos) por ser el segundo tono identificado en la paleta de marca, evitando saturar la interfaz de rojo</td></tr>
+<tr><td>Tan/crema #B8AA91 / #DBD3C8</td><td>Fondos secundarios, texto tenue, superficies neutras — modo claro y oscuro</td></tr>
+<tr><td>Tipografía serif del logotipo (ERP/&amp;)</td><td>Títulos y encabezados en <em>Source Serif 4</em>, como extensión coherente del carácter serif del isotipo — no especificada en el manual, decisión de diseño</td></tr>
+<tr><td>Tipografía sans del logotipo (LAWYERS &amp; ASSOCIATES)</td><td>Texto de interfaz en <em>Public Sans</em>, por su neutralidad y legibilidad en densidad de datos</td></tr>
+</table>
+<p style="color:#946A1A;"><strong>Nota:</strong> el manual de marca entregado (5 páginas) es mayormente gráfico; solo se extrajeron programáticamente los 4 códigos de color anteriores. Tipografías, iconografía y usos correctos/incorrectos no pudieron extraerse como texto — si el manual define tipografías oficiales, indíquenlas para sustituir esta extensión.</p>
+
+<h2>5. Módulos funcionales</h2>
+<table>
+<tr><th>Módulo</th><th>Función</th></tr>
+<tr><td>Bandeja de nuevos leads</td><td>Cola única de Bayron para revisar, responder o reasignar cada lead entrante</td></tr>
+<tr><td>Bandeja omnicanal</td><td>Hilo unificado de correo + WhatsApp + formularios + notas por contacto/lead</td></tr>
+<tr><td>Contactos y leads</td><td>Ficha completa con datos, teléfonos E.164, historial cronológico auditable</td></tr>
+<tr><td>Pipeline Kanban</td><td>16 etapas configurables, de "Lead nuevo" a "Contratado" o "Perdido"</td></tr>
+<tr><td>Calendario y actividades</td><td>Llamadas, reuniones, recordatorios, tareas vencidas y recurrentes</td></tr>
+<tr><td>Constructor de formularios</td><td>Formularios propios y mapeo de formularios de WordPress, campos condicionales</td></tr>
+<tr><td>Automatizaciones</td><td>Motor "cuando ocurra / si se cumple / ejecutar" para asignación, alertas y seguimientos</td></tr>
+<tr><td>Reportes</td><td>Conversión, SLA de primera respuesta, leads por canal/fuente/servicio/responsable</td></tr>
+<tr><td>Usuarios y roles</td><td>Administración de accesos, equipos, permisos por módulo/campo/canal</td></tr>
+<tr><td>Auditoría</td><td>Registro inmutable de cada acción: asignaciones, cambios de estado, accesos</td></tr>
+</table>
+
+<h2>6. Modelo de datos (entidades principales)</h2>
+<p>Se diferencian explícitamente <strong>Contacto</strong>, <strong>Empresa</strong>, <strong>Lead/Oportunidad</strong>, <strong>Cliente</strong>, <strong>Asunto legal</strong>, <strong>Comunicación/Conversación/Mensaje</strong> y <strong>Documento</strong> — un contacto puede tener varios leads, servicios y asuntos sin mezclarse en una sola tabla.</p>
+<table>
+<tr><th>Entidad</th><th>Campos clave</th><th>Relaciones</th></tr>
+<tr><td>usuarios</td><td>nombre, correo (único), rol, equipo, idioma, zona horaria, canales autorizados, mfa_activo</td><td>1—N leads (responsable), 1—N actividades</td></tr>
+<tr><td>contactos</td><td>nombre, apellidos, correos[], teléfonos[] (E.164, tipo, verificado), país, idioma, empresa_id</td><td>1—N leads, N—1 empresa</td></tr>
+<tr><td>empresas</td><td>razón social, sector, contactos[]</td><td>1—N contactos</td></tr>
+<tr><td>leads</td><td>contacto_id, servicio, etapa, canal_origen, fuente, campaña, prioridad, valor_potencial, responsable_id, estado</td><td>N—1 contacto, 1—N actividades, 1—N conversaciones</td></tr>
+<tr><td>conversaciones / mensajes</td><td>canal, hilo_id, remitente, destinatarios, cuerpo, adjuntos[], fecha</td><td>N—1 lead, N—1 contacto</td></tr>
+<tr><td>archivos</td><td>nombre, tipo, tamaño, url_firmada, resultado_escaneo, mensaje_id</td><td>N—1 mensaje, N—1 lead</td></tr>
+<tr><td>actividades</td><td>tipo, responsable_id, lead_id, fecha, estado, resultado</td><td>N—1 lead, N—1 usuario</td></tr>
+<tr><td>automatizaciones / alertas</td><td>disparador, condición, acción, activo</td><td>referencian leads, usuarios, etapas</td></tr>
+<tr><td>auditoría</td><td>usuario, acción, entidad, estado_anterior, estado_posterior, fecha</td><td>referencia cualquier entidad</td></tr>
+</table>
+<p>Diagrama entidad-relación completo, campos de formularios, consentimientos, SLA e integraciones de error se detallan en el anexo técnico de desarrollo (no incluido en este documento de diseño).</p>
+
+<h2>7. Arquitectura recomendada para Netlify</h2>
+<table>
+<tr><th>Capa</th><th>Recomendación</th><th>Por qué</th></tr>
+<tr><td>Frontend</td><td>Netlify (sitio estático + funciones)</td><td>Requisito del proyecto; CDN global, deploy previews, HTTPS gratuito</td></tr>
+<tr><td>Backend / lógica</td><td>Netlify Functions para webhooks ligeros y firmados; tareas largas en un servicio externo (cola o backend dedicado)</td><td>Las funciones serverless de Netlify tienen límite de tiempo de ejecución — no deben alojar procesos permanentes ni colas</td></tr>
+<tr><td>Base de datos</td><td>Supabase (PostgreSQL administrado) o Neon</td><td>Row-level security nativo, backups automáticos, compatible con arquitectura desacoplada de Netlify</td></tr>
+<tr><td>Autenticación</td><td>Supabase Auth o Clerk (MFA, hashing seguro, sesiones revocables)</td><td>Evita almacenar contraseñas en texto plano; provee recuperación, bloqueo por intentos y auditoría de sesiones</td></tr>
+<tr><td>Archivos adjuntos</td><td>Amazon S3 o almacenamiento compatible con S3, con URLs firmadas temporales</td><td>Nunca en almacenamiento efímero de funciones; control de acceso y expiración</td></tr>
+<tr><td>Correo saliente/entrante</td><td>OAuth con Google Workspace / Microsoft 365; proveedor transaccional (p. ej. Postmark/SendGrid) para envío</td><td>Evita IMAP/SMTP con contraseñas cuando hay alternativa OAuth</td></tr>
+<tr><td>WhatsApp</td><td>WhatsApp Business Platform oficial (Meta) o BSP autorizado</td><td>Requisito explícito: nunca automatizaciones no oficiales</td></tr>
+<tr><td>Colas / procesos asíncronos</td><td>Servicio de colas administrado (p. ej. Upstash, SQS) para reintentos de webhooks e idempotencia</td><td>Las funciones de Netlify no deben usarse como cola persistente</td></tr>
+</table>
+<p><span class="tag tag-f3">Requiere aprobación de proveedores</span> Supabase/Neon, S3, Meta WhatsApp Business, proveedor de correo transaccional — todos implican cuentas y costos externos a Netlify.</p>
+
+<h2>8. Priorización — MVP</h2>
+<p><span class="tag tag-mvp">MVP</span> Autenticación + usuarios iniciales · Asignación automática a Bayron + notificación por correo · Contactos y leads con teléfonos E.164 · Pipeline · Formularios (WordPress + propios) · Bandeja omnicanal (correo + WhatsApp oficial) · Recepción de adjuntos · Actividades y alertas · Auditoría · Reportes básicos · Detección de duplicados · Despliegue en Netlify.</p>
+<p><span class="tag tag-f2">Fase 2</span> Automatizaciones visuales avanzadas · Constructor de formularios con lógica condicional completa · Reportes de SLA por usuario · Roles personalizados granulares.</p>
+<p><span class="tag tag-f3">Fase 3 / avanzado</span> IA asistida (resúmenes, puntuación de leads, sugerencias de respuesta) · Traducción automática · Sincronización de calendarios externos · Notificaciones móviles push.</p>
+
+<h2>9. Seguridad y cumplimiento</h2>
+<ul>
+<li>Cifrado en tránsito y en reposo; hashing seguro de contraseñas (nunca texto plano)</li>
+<li>MFA, bloqueo por intentos fallidos, revocación remota de sesiones, auditoría de accesos</li>
+<li>Permisos aplicados en backend (no solo interfaz); mínimos privilegios por rol/módulo/campo/canal</li>
+<li>Escaneo de archivos adjuntos; URLs firmadas y temporales; sin exposición pública de documentos</li>
+<li>Webhooks verificados por firma, con reintentos idempotentes</li>
+<li>Consideración de la normativa costarricense de protección de datos personales (Ley 8968) y principios internacionales de minimización y consentimiento</li>
+</ul>
+
+<h2>10. Criterios de aceptación clave</h2>
+<ul>
+<li>Los 4 usuarios acceden individualmente con su correo único y cambian la contraseña temporal en el primer ingreso</li>
+<li>Todo lead nuevo, de cualquier canal, se asigna a Bayron y genera notificación en el CRM y por correo</li>
+<li>Respuestas de correo y WhatsApp —con adjuntos— ingresan automáticamente a la línea de tiempo y a la bandeja omnicanal</li>
+<li>Los teléfonos se almacenan en formato E.164 y el sistema evita duplicados evidentes</li>
+<li>Toda asignación, reasignación y cambio de estado queda registrado en auditoría</li>
+<li>El frontend se despliega correctamente en Netlify sin exponer claves privadas</li>
+</ul>
+
+<h2>11. Próximos pasos</h2>
+<p>Con este blueprint y el prototipo interactivo validados, el siguiente paso es un paquete de <strong>handoff a desarrollo</strong> (repositorio, esquema de base de datos, especificación de endpoints/webhooks, variables de entorno, <code>netlify.toml</code>) para que un equipo de ingeniería construya el backend real. Indíquenme si desean que prepare ese paquete a continuación.</p>
+
+</x-import>
+
+</x-dc>
+</body>
+</html>

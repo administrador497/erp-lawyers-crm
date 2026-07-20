@@ -1,0 +1,105 @@
+:root {
+  --color-bg: #faf8f5;
+  --color-panel: #ffffff;
+  --color-panel-2: #f2ece2;
+  --color-border: #e5dfd3;
+  --color-text: #211f1c;
+  --color-muted: #7a7266;
+  --color-red: #ce192b;
+  --color-blue: #3349aa;
+  --color-tan: #b8aa91;
+  --color-cream: #dbd3c8;
+  --color-sidebar-bg: var(--color-blue);
+  /* Brand identity aliases — always one of the 4 brand colors, never a new
+     tone. --color-heading drives every h1-h6 (see rule below), so turning
+     an inline-styled title <div> into a real heading tag picks up blue for
+     free. The accent-* pair names the same red/blue by INTENT (alert vs
+     informational) so callers reaching for a KPI/card border don't have to
+     re-derive which of the two brand colors means what. */
+  --color-heading: var(--color-blue);
+  --color-accent-info: var(--color-blue);
+  --color-accent-alert: var(--color-red);
+  --font-heading: var(--font-source-serif), "Source Serif 4", serif;
+  --font-body: var(--font-public-sans), "Public Sans", sans-serif;
+}
+
+[data-theme="dark"] {
+  --color-bg: #141311;
+  --color-panel: #1d1b18;
+  --color-panel-2: #26221c;
+  --color-border: #3a362f;
+  --color-text: #f2eee6;
+  --color-muted: #b8aa91;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* Every page/section/modal title in the app is (or should be) a real h1-h6,
+   not a styled <div> — this is the one rule that puts the blue brand color
+   on every title at once instead of editing color per component. margin:0
+   because these titles sit inside flex/grid layouts that already manage
+   spacing via gap/marginBottom on the wrapping element. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--color-heading);
+  margin: 0;
+}
+
+a {
+  color: var(--color-blue);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-tan);
+  border-radius: 4px;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
