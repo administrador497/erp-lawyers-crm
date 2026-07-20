@@ -20,13 +20,14 @@
 # Content-Security-Policy is intentionally NOT set here. netlify.toml
 # [[headers]] has no supported per-context variant — [context.X] blocks can
 # only override command/publish/functions/environment, never headers — so a
-# strict script-src here would apply identically to `netlify dev` and to
-# production, breaking Next.js's dev-mode eval()-based HMR/Fast Refresh
-# (EvalError, broken hydration, forms silently falling back to native
-# submission). The CSP lives in next.config.mjs's headers() instead, which
-# can branch on NODE_ENV: relaxed (absent) in dev, strict in production —
-# and still applies correctly once deployed, since @netlify/plugin-nextjs
-# runs Next's own request handling (including headers()) as-is.
+# static script-src here would apply identically to `netlify dev` and to
+# production, breaking Next.js's dev-mode eval()-based HMR/Fast Refresh. It
+# also can't carry a per-request nonce, which a strict (no unsafe-inline)
+# script-src needs for Next's own hydration scripts to run. The CSP lives
+# in middleware.ts instead, which generates a fresh nonce per request and
+# skips setting the header at all outside production — and still applies
+# correctly once deployed, since @netlify/plugin-nextjs runs Next
+# middleware as-is (as a Netlify Edge Function).
 [[headers]]
   for = "/*"
   [headers.values]
