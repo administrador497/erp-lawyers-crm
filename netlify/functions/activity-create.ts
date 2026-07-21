@@ -1,6 +1,8 @@
 import type { Handler } from "@netlify/functions";
 import { jsonResponse, requireUser } from "./_shared/auth";
 import { getSupabaseAdmin } from "./_shared/supabaseAdmin";
+import { nombreCompleto } from "./_shared/contacto";
+import { notifyActivityAssigned } from "./_shared/notifyBayron";
 
 const TIPOS_VALIDOS = ["llamada", "correo", "whatsapp", "reunion", "tarea", "recordatorio"];
 
@@ -52,7 +54,11 @@ export const handler: Handler = async (event) => {
 
   const { data: lead, error: leadError } = await admin
     .from("leads")
-    .select("id, responsable_id")
+    .select(
+      `id, responsable_id,
+       contacto:contacto_id ( nombre, primer_apellido, segundo_apellido ),
+       servicio:servicio_id ( nombre )`
+    )
     .eq("id", lead_id)
     .maybeSingle();
 
@@ -65,11 +71,12 @@ export const handler: Handler = async (event) => {
   }
 
   let responsableId = body.responsable_id ?? auth.usuario.id;
+  let responsableCorreo = auth.usuario.correo;
 
   if (body.responsable_id) {
     const { data: responsable, error: responsableError } = await admin
       .from("usuarios")
-      .select("id, activo")
+      .select("id, activo, correo")
       .eq("id", body.responsable_id)
       .maybeSingle();
 
@@ -77,6 +84,7 @@ export const handler: Handler = async (event) => {
       return jsonResponse(400, { error: "responsable_id inválido o inactivo." });
     }
     responsableId = responsable.id;
+    responsableCorreo = responsable.correo;
   }
 
   const { data: actividad, error: insertError } = await admin
@@ -102,6 +110,17 @@ export const handler: Handler = async (event) => {
     entidad: "actividades",
     entidad_id: actividad.id,
     estado_posterior: { lead_id, tipo, fecha, responsable_id: responsableId },
+  });
+
+  // Best-effort — nunca debe fallar la creación de la actividad si el
+  // proveedor transaccional no está configurado (ver _shared/notifyBayron.ts).
+  await notifyActivityAssigned({
+    responsableCorreo,
+    tipo,
+    fecha,
+    descripcion: descripcion ?? null,
+    contactoNombre: nombreCompleto((lead as any).contacto ?? {}),
+    servicio: (lead as any).servicio?.nombre ?? null,
   });
 
   return jsonResponse(201, { ok: true, activity_id: actividad.id });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
 import { formatIngreso } from "../../../lib/format";
 import { useToast } from "../../../components/useToast";
@@ -57,6 +58,7 @@ const modalLabelStyle: React.CSSProperties = {
 };
 
 export default function CalendarioPage() {
+  const router = useRouter();
   const { toast, showToast } = useToast();
   const [actividades, setActividades] = useState<ActividadRow[]>([]);
   const [contactos, setContactos] = useState<ContactListRow[]>([]);
@@ -70,6 +72,11 @@ export default function CalendarioPage() {
   const [formLeadId, setFormLeadId] = useState("");
   const [formFecha, setFormFecha] = useState(toDatetimeLocalValue(new Date()));
   const [formDescripcion, setFormDescripcion] = useState("");
+
+  const [completingActivity, setCompletingActivity] = useState<ActividadRow | null>(null);
+  const [completeResultado, setCompleteResultado] = useState("");
+  const [completeProximaAccion, setCompleteProximaAccion] = useState("");
+  const [completingSubmitting, setCompletingSubmitting] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -102,16 +109,17 @@ export default function CalendarioPage() {
     load();
   }, []);
 
-  const toggleActividad = async (actividad: ActividadRow) => {
+  // Reabrir es un toggle simple de un clic — no hace falta pedir nada de
+  // nuevo. Completar sí abre un modal (abajo) porque es el momento natural
+  // para capturar resultado/próxima acción, que "Generar seguimiento" luego
+  // reutiliza para prellenar la siguiente actividad.
+  const reabrirActividad = async (actividad: ActividadRow) => {
     setTogglingId(actividad.id);
-    const nuevoEstado = actividad.estado === "completada" ? "pendiente" : "completada";
-
     const res = await authedFetch("/api/activity-update", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ activity_id: actividad.id, estado: nuevoEstado }),
+      body: JSON.stringify({ activity_id: actividad.id, estado: "pendiente" }),
     });
-
     setTogglingId(null);
 
     if (!res.ok) {
@@ -120,10 +128,65 @@ export default function CalendarioPage() {
       return;
     }
 
+    setActividades((prev) => prev.map((a) => (a.id === actividad.id ? { ...a, estado: "pendiente" } : a)));
+    showToast("Actividad reabierta.");
+  };
+
+  const abrirCompletarActividad = (actividad: ActividadRow) => {
+    setCompletingActivity(actividad);
+    setCompleteResultado(actividad.resultado ?? "");
+    setCompleteProximaAccion(actividad.proxima_accion ?? "");
+  };
+
+  const confirmarCompletarActividad = async () => {
+    if (!completingActivity) return;
+    setCompletingSubmitting(true);
+
+    const res = await authedFetch("/api/activity-update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        activity_id: completingActivity.id,
+        estado: "completada",
+        resultado: completeResultado.trim() || null,
+        proxima_accion: completeProximaAccion.trim() || null,
+      }),
+    });
+
+    setCompletingSubmitting(false);
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showToast(body.error ?? "No fue posible completar la actividad.");
+      return;
+    }
+
     setActividades((prev) =>
-      prev.map((a) => (a.id === actividad.id ? { ...a, estado: nuevoEstado } : a))
+      prev.map((a) =>
+        a.id === completingActivity.id
+          ? {
+              ...a,
+              estado: "completada",
+              resultado: completeResultado.trim() || null,
+              proxima_accion: completeProximaAccion.trim() || null,
+            }
+          : a
+      )
     );
-    showToast(nuevoEstado === "completada" ? "Actividad completada." : "Actividad reabierta.");
+    setCompletingActivity(null);
+    showToast("Actividad completada.");
+  };
+
+  // Reutiliza el mismo modal de "+ Nueva actividad" en vez de duplicar uno
+  // aparte — solo lo prellena con el lead, el tipo y la próxima acción que
+  // se haya anotado al completar la actividad anterior.
+  const generarSeguimiento = (actividad: ActividadRow) => {
+    if (!actividad.lead_id) return;
+    setFormLeadId(actividad.lead_id);
+    setFormTipo(actividad.tipo);
+    setFormFecha(toDatetimeLocalValue(new Date()));
+    setFormDescripcion(actividad.proxima_accion ?? "");
+    setShowModal(true);
   };
 
   const crearActividad = async () => {
@@ -232,12 +295,29 @@ export default function CalendarioPage() {
                     {a.descripcion || TIPOS.find((t) => t.value === a.tipo)?.label || a.tipo}
                   </div>
                   <div style={{ fontSize: 11.5, color: "var(--color-muted)", marginTop: 2 }}>
-                    {a.lead_nombre} · {TIPOS.find((t) => t.value === a.tipo)?.label ?? a.tipo}
+                    {a.lead_id ? (
+                      <span
+                        onClick={() => router.push(`/inbox?lead=${a.lead_id}`)}
+                        title="Ver conversación en Bandeja omnicanal"
+                        style={{ color: "var(--color-blue)", cursor: "pointer", textDecoration: "underline" }}
+                      >
+                        {a.lead_nombre}
+                      </span>
+                    ) : (
+                      a.lead_nombre
+                    )}{" "}
+                    · {TIPOS.find((t) => t.value === a.tipo)?.label ?? a.tipo}
                   </div>
+                  {completada && (a.resultado || a.proxima_accion) ? (
+                    <div style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 4 }}>
+                      {a.resultado ? <div>Resultado: {a.resultado}</div> : null}
+                      {a.proxima_accion ? <div>Próxima acción: {a.proxima_accion}</div> : null}
+                    </div>
+                  ) : null}
                 </div>
-                <div style={{ textAlign: "right" }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
                   <button
-                    onClick={() => toggleActividad(a)}
+                    onClick={() => (completada ? reabrirActividad(a) : abrirCompletarActividad(a))}
                     disabled={togglingId === a.id}
                     style={{
                       fontSize: 12,
@@ -251,6 +331,21 @@ export default function CalendarioPage() {
                   >
                     {completada ? "Reabrir" : "Completar"}
                   </button>
+                  {completada && a.lead_id ? (
+                    <button
+                      onClick={() => generarSeguimiento(a)}
+                      style={{
+                        fontSize: 11.5,
+                        padding: "5px 10px",
+                        border: "1px solid var(--color-border)",
+                        borderRadius: 2,
+                        background: "var(--color-panel)",
+                        color: "var(--color-blue)",
+                      }}
+                    >
+                      Generar seguimiento
+                    </button>
+                  ) : null}
                 </div>
               </div>
             );
@@ -374,6 +469,94 @@ export default function CalendarioPage() {
                 }}
               >
                 {creating ? "Creando…" : "Crear"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {completingActivity ? (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.35)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 100,
+          }}
+        >
+          <div
+            style={{
+              width: 380,
+              background: "var(--color-panel)",
+              border: "1px solid var(--color-border)",
+              borderRadius: 2,
+              padding: 24,
+              boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
+            }}
+          >
+            <h2 style={{ fontFamily: "var(--font-heading)", fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
+              Completar actividad
+            </h2>
+            <div style={{ fontSize: 12.5, color: "var(--color-muted)", marginBottom: 16 }}>
+              {completingActivity.lead_nombre} · {TIPOS.find((t) => t.value === completingActivity.tipo)?.label ?? completingActivity.tipo}
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <div style={modalLabelStyle}>Resultado (opcional)</div>
+                <textarea
+                  value={completeResultado}
+                  onChange={(e) => setCompleteResultado(e.target.value)}
+                  rows={2}
+                  placeholder="¿Qué pasó?"
+                  style={{ ...modalInputStyle, resize: "vertical" }}
+                />
+              </div>
+              <div>
+                <div style={modalLabelStyle}>Próxima acción (opcional)</div>
+                <textarea
+                  value={completeProximaAccion}
+                  onChange={(e) => setCompleteProximaAccion(e.target.value)}
+                  rows={2}
+                  placeholder="Se usa para prellenar 'Generar seguimiento'"
+                  style={{ ...modalInputStyle, resize: "vertical" }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
+              <button
+                onClick={() => setCompletingActivity(null)}
+                disabled={completingSubmitting}
+                style={{
+                  fontSize: 13,
+                  padding: "9px 16px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 2,
+                  background: "var(--color-panel)",
+                  color: "var(--color-text)",
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmarCompletarActividad}
+                disabled={completingSubmitting}
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  padding: "9px 16px",
+                  border: "none",
+                  borderRadius: 2,
+                  background: "var(--color-red)",
+                  color: "#fff",
+                  opacity: completingSubmitting ? 0.6 : 1,
+                }}
+              >
+                {completingSubmitting ? "Guardando…" : "Marcar como completada"}
               </button>
             </div>
           </div>
