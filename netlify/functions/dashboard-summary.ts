@@ -46,7 +46,8 @@ export const handler: Handler = async (event) => {
   let leadsQuery = admin
     .from("leads")
     .select("id, etapa_id, responsable_id, created_at")
-    .eq("pipeline_id", pipeline.id);
+    .eq("pipeline_id", pipeline.id)
+    .is("deleted_at", null);
 
   if (scope === "personal") {
     leadsQuery = leadsQuery.eq("responsable_id", auth.usuario.id);
@@ -124,20 +125,21 @@ export const handler: Handler = async (event) => {
   const leadsSinSeguimiento = leads.filter((l) => !leadsConSeguimiento.has(l.id)).length;
 
   // --- Actividad reciente: últimas 5 entradas de auditoria sobre leads ---
-  let auditoriaQuery = admin
-    .from("auditoria")
-    .select("usuario_id, accion, entidad_id, estado_anterior, estado_posterior, created_at")
-    .eq("entidad", "leads")
-    .order("created_at", { ascending: false })
-    .limit(5);
-
-  // Personal scope with zero leads means zero rows, full stop — skip the
-  // query rather than relying on how the client library handles `.in()`
-  // with an empty array.
+  // Siempre filtrado por `leadIds` (ya excluye leads eliminados y, en scope
+  // personal, ya está acotado a los propios) — antes, en scope general, esta
+  // consulta no tenía ningún filtro por lead y podía mostrar auditoria de
+  // leads ya eliminados. Con leadIds.length === 0 se salta la consulta en
+  // vez de confiar en cómo maneja el cliente un `.in()` con arreglo vacío.
   const { data: auditoriaRows } =
-    scope === "personal" && leadIds.length === 0
+    leadIds.length === 0
       ? { data: [] }
-      : await (scope === "personal" ? auditoriaQuery.in("entidad_id", leadIds) : auditoriaQuery);
+      : await admin
+          .from("auditoria")
+          .select("usuario_id, accion, entidad_id, estado_anterior, estado_posterior, created_at")
+          .eq("entidad", "leads")
+          .in("entidad_id", leadIds)
+          .order("created_at", { ascending: false })
+          .limit(5);
 
   const auditoriaLeadIds = Array.from(
     new Set((auditoriaRows ?? []).map((a: any) => a.entidad_id).filter(Boolean))
@@ -175,12 +177,16 @@ export const handler: Handler = async (event) => {
   }));
 
   // --- Próximas actividades: no completadas, ordenadas por fecha ---
+  // lead:lead_id!inner + is("lead.deleted_at", null) — mismo criterio que
+  // activities-list.ts, para no mostrar una actividad futura de un lead ya
+  // eliminado (antes esta consulta no filtraba el lead en absoluto).
   let proximasQuery = admin
     .from("actividades")
     .select(
       `id, tipo, fecha,
-       lead:lead_id ( contacto:contacto_id ( nombre, primer_apellido, segundo_apellido ) )`
+       lead:lead_id!inner ( contacto:contacto_id ( nombre, primer_apellido, segundo_apellido ) )`
     )
+    .is("lead.deleted_at", null)
     .neq("estado", "completada")
     .order("fecha", { ascending: true })
     .limit(5);
