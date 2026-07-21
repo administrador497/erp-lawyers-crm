@@ -6,6 +6,7 @@ import { createClient } from "../../../lib/supabase/client";
 import { formatIngreso } from "../../../lib/format";
 import { useToast } from "../../../components/useToast";
 import ToastHost from "../../../components/ToastHost";
+import LeadActivitiesList from "../../../components/LeadActivitiesList";
 import type { AdjuntoRow, ConversacionRow, EtapaRow, MensajeRow, MotivoPerdidaRow } from "../../../lib/types";
 
 const CANAL_LABEL: Record<string, string> = {
@@ -110,6 +111,7 @@ function InboxView() {
   const [etapas, setEtapas] = useState<EtapaRow[]>([]);
   const [motivosPerdida, setMotivosPerdida] = useState<MotivoPerdidaRow[]>([]);
   const [movingEtapa, setMovingEtapa] = useState(false);
+  const [showActividades, setShowActividades] = useState(false);
   const [lossPrompt, setLossPrompt] = useState<{ etapaId: string; etapaNombre: string } | null>(null);
   const [selectedMotivoId, setSelectedMotivoId] = useState("");
   const [confirmingLoss, setConfirmingLoss] = useState(false);
@@ -572,8 +574,38 @@ function InboxView() {
                   >
                     + Nueva actividad
                   </button>
+                  {activa.lead_id ? (
+                    <button
+                      onClick={() => setShowActividades((v) => !v)}
+                      style={{
+                        fontSize: 11.5,
+                        fontWeight: 600,
+                        padding: "6px 12px",
+                        border: "1px solid var(--color-border)",
+                        borderRadius: 2,
+                        background: showActividades ? "var(--color-panel-2)" : "var(--color-panel)",
+                        color: "var(--color-text)",
+                      }}
+                    >
+                      Actividades {showActividades ? "▾" : "▸"}
+                    </button>
+                  ) : null}
                 </div>
               </div>
+
+              {showActividades && activa.lead_id ? (
+                <div
+                  style={{
+                    padding: "14px 20px",
+                    borderBottom: "1px solid var(--color-border)",
+                    background: "var(--color-panel-2)",
+                    maxHeight: 220,
+                    overflow: "auto",
+                  }}
+                >
+                  <LeadActivitiesList leadId={activa.lead_id} />
+                </div>
+              ) : null}
 
               <div
                 style={{

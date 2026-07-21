@@ -5,6 +5,7 @@ import { createClient } from "../../../lib/supabase/client";
 import { formatCurrency } from "../../../lib/format";
 import { useToast } from "../../../components/useToast";
 import ToastHost from "../../../components/ToastHost";
+import LeadActivitiesList from "../../../components/LeadActivitiesList";
 import type { CurrentUsuario, EtapaRow, MotivoPerdidaRow, PipelineLeadRow } from "../../../lib/types";
 
 const ETAPA_PERDIDO = "Perdido";
@@ -47,6 +48,7 @@ export default function PipelinePage() {
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingLeads, setDeletingLeads] = useState(false);
+  const [verActividadesLead, setVerActividadesLead] = useState<PipelineLeadRow | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -314,6 +316,16 @@ export default function PipelinePage() {
                       <div style={{ fontSize: 11, color: "var(--color-blue)", marginTop: 5, fontWeight: 600 }}>
                         {formatCurrency(lead.valor_potencial)}
                       </div>
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setVerActividadesLead(lead);
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        style={{ fontSize: 10.5, color: "var(--color-muted)", marginTop: 6, cursor: "pointer", textDecoration: "underline" }}
+                      >
+                        Actividades
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -485,6 +497,55 @@ export default function PipelinePage() {
                 }}
               >
                 {deletingLeads ? "Eliminando…" : "Eliminar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {verActividadesLead ? (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.35)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 100,
+          }}
+          onClick={() => setVerActividadesLead(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 420,
+              maxHeight: "70vh",
+              overflow: "auto",
+              background: "var(--color-panel)",
+              border: "1px solid var(--color-border)",
+              borderRadius: 2,
+              padding: 24,
+              boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
+            }}
+          >
+            <h2 style={{ fontFamily: "var(--font-heading)", fontSize: 16, fontWeight: 600, marginBottom: 16 }}>
+              Actividades — {verActividadesLead.nombre_completo}
+            </h2>
+            <LeadActivitiesList leadId={verActividadesLead.id} />
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
+              <button
+                onClick={() => setVerActividadesLead(null)}
+                style={{
+                  fontSize: 13,
+                  padding: "9px 16px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 2,
+                  background: "var(--color-panel)",
+                  color: "var(--color-text)",
+                }}
+              >
+                Cerrar
               </button>
             </div>
           </div>

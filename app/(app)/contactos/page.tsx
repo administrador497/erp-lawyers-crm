@@ -5,6 +5,7 @@ import { createClient } from "../../../lib/supabase/client";
 import { formatCurrency, formatIngreso, priorityStyle } from "../../../lib/format";
 import { useToast } from "../../../components/useToast";
 import ToastHost from "../../../components/ToastHost";
+import LeadActivitiesList from "../../../components/LeadActivitiesList";
 import type { ContactDetail, ContactListRow, CurrentUsuario, HistorialItem, ServicioRow } from "../../../lib/types";
 
 async function authedFetch(path: string, init: RequestInit = {}) {
@@ -133,7 +134,7 @@ export default function ContactosPage() {
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ContactDetail | null>(null);
   const [historial, setHistorial] = useState<HistorialItem[]>([]);
-  const [tab, setTab] = useState<"info" | "historial">("info");
+  const [tab, setTab] = useState<"info" | "historial" | "actividades">("info");
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [loadingList, setLoadingList] = useState(true);
@@ -487,6 +488,20 @@ export default function ContactosPage() {
               >
                 Historial
               </div>
+              <div
+                onClick={() => setTab("actividades")}
+                style={{
+                  padding: "7px 14px",
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  borderRadius: 2,
+                  background: tab === "actividades" ? "var(--color-red)" : "transparent",
+                  color: tab === "actividades" ? "#fff" : "var(--color-muted)",
+                }}
+              >
+                Actividades
+              </div>
 
               {tab === "info" ? (
                 <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
@@ -728,6 +743,8 @@ export default function ContactosPage() {
                 )}
               </div>
             ) : null}
+
+            {tab === "actividades" ? <LeadActivitiesList leadId={detail.lead_id} /> : null}
           </>
         )}
       </div>
