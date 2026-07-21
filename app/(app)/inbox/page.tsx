@@ -7,7 +7,14 @@ import { formatIngreso } from "../../../lib/format";
 import { useToast } from "../../../components/useToast";
 import ToastHost from "../../../components/ToastHost";
 import LeadActivitiesList from "../../../components/LeadActivitiesList";
-import type { AdjuntoRow, ConversacionRow, EtapaRow, MensajeRow, MotivoPerdidaRow } from "../../../lib/types";
+import type {
+  AdjuntoRow,
+  ConversacionRow,
+  CurrentUsuario,
+  EtapaRow,
+  MensajeRow,
+  MotivoPerdidaRow,
+} from "../../../lib/types";
 
 const CANAL_LABEL: Record<string, string> = {
   correo: "Correo",
@@ -99,6 +106,9 @@ function InboxView() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mensajes, setMensajes] = useState<MensajeRow[]>([]);
   const [currentUserCorreo, setCurrentUserCorreo] = useState<string | null>(null);
+  const [usuario, setUsuario] = useState<CurrentUsuario | null>(null);
+  const [showDeleteConvModal, setShowDeleteConvModal] = useState(false);
+  const [deletingConversacion, setDeletingConversacion] = useState(false);
   const [loadingList, setLoadingList] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [error, setError] = useState("");
@@ -147,6 +157,7 @@ function InboxView() {
       if (meRes.ok) {
         const meBody = await meRes.json();
         setCurrentUserCorreo(meBody.usuario?.correo ?? null);
+        setUsuario(meBody.usuario ?? null);
       }
 
       const porLead = leadParam ? lista.find((c) => c.lead_id === leadParam) : null;
@@ -328,6 +339,35 @@ function InboxView() {
 
     setShowActivityModal(false);
     showToast("Actividad creada. Visible en Calendario.");
+  };
+
+  // Elimina SOLO la conversación (soft-delete) — el lead y el contacto
+  // asociados no se tocan y siguen viéndose normal en Pipeline/Contactos/
+  // Calendario. Mismo patrón que "Eliminar contacto" en /contactos:
+  // conversation-delete.ts, solo Administrador general.
+  const eliminarConversacion = async () => {
+    if (!selectedId) return;
+    setDeletingConversacion(true);
+    const res = await authedFetch("/api/conversation-delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversacion_id: selectedId }),
+    });
+    setDeletingConversacion(false);
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showToast(body.error ?? "No fue posible eliminar la conversación.");
+      return;
+    }
+
+    setConversaciones((prev) => {
+      const restantes = prev.filter((c) => c.id !== selectedId);
+      setSelectedId(restantes[0]?.id ?? null);
+      return restantes;
+    });
+    setShowDeleteConvModal(false);
+    showToast("Conversación eliminada.");
   };
 
   const sendReply = async () => {
@@ -588,6 +628,23 @@ function InboxView() {
                       }}
                     >
                       Actividades {showActividades ? "▾" : "▸"}
+                    </button>
+                  ) : null}
+                  {usuario?.rol === "Administrador general" ? (
+                    <button
+                      onClick={() => setShowDeleteConvModal(true)}
+                      title="Eliminar solo esta conversación (el lead y el contacto no se ven afectados)"
+                      style={{
+                        fontSize: 11.5,
+                        fontWeight: 600,
+                        padding: "6px 12px",
+                        border: "1px solid var(--color-border)",
+                        borderRadius: 2,
+                        background: "var(--color-panel)",
+                        color: "var(--color-red)",
+                      }}
+                    >
+                      Eliminar conversación
                     </button>
                   ) : null}
                 </div>
@@ -1017,6 +1074,73 @@ function InboxView() {
                 }}
               >
                 {creatingActivity ? "Creando…" : "Crear"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showDeleteConvModal && activa ? (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.35)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 100,
+          }}
+        >
+          <div
+            style={{
+              width: 380,
+              background: "var(--color-panel)",
+              border: "1px solid var(--color-border)",
+              borderRadius: 2,
+              padding: 24,
+              boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
+            }}
+          >
+            <h2 style={{ fontFamily: "var(--font-heading)", fontSize: 16, fontWeight: 600, marginBottom: 6 }}>
+              Eliminar conversación
+            </h2>
+            <div style={{ fontSize: 12.5, color: "var(--color-muted)", marginBottom: 20 }}>
+              ¿Eliminar la conversación con {activa.contacto_nombre}? Dejará de aparecer en la Bandeja omnicanal. El
+              lead y el contacto no se ven afectados y siguen visibles en Pipeline, Contactos y Calendario. No se
+              borra el historial de mensajes y puede revertirse solo desde la base de datos.
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              <button
+                onClick={() => setShowDeleteConvModal(false)}
+                disabled={deletingConversacion}
+                style={{
+                  fontSize: 13,
+                  padding: "9px 16px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 2,
+                  background: "var(--color-panel)",
+                  color: "var(--color-text)",
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={eliminarConversacion}
+                disabled={deletingConversacion}
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  padding: "9px 16px",
+                  border: "none",
+                  borderRadius: 2,
+                  background: "var(--color-red)",
+                  color: "#fff",
+                  opacity: deletingConversacion ? 0.6 : 1,
+                }}
+              >
+                {deletingConversacion ? "Eliminando…" : "Eliminar"}
               </button>
             </div>
           </div>

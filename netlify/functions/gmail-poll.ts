@@ -164,10 +164,15 @@ async function procesarMensajeEntrante(
   if (gmailMsg.threadId) {
     const { data } = await admin
       .from("conversaciones")
-      .select("id, lead_id, contacto_id")
+      .select("id, lead_id, contacto_id, deleted_at")
       .eq("hilo_externo_id", gmailMsg.threadId)
       .maybeSingle();
-    conversacionExistente = data;
+    // Una conversación eliminada (soft-delete, un admin la ocultó a
+    // propósito de la Bandeja) no se reutiliza — sin este chequeo, un
+    // correo nuevo en ese mismo hilo de Gmail quedaría guardado ahí para
+    // siempre, invisible en /inbox. Se trata como si no hubiera match de
+    // hilo, así que sigue el mismo camino que un hilo nuevo (abajo).
+    conversacionExistente = data && !data.deleted_at ? data : null;
   }
 
   if (conversacionExistente) {
@@ -295,10 +300,15 @@ async function buscarLeadActivoDeContacto(
 
   if (!lead) return null;
 
+  // Solo conversaciones no eliminadas cuentan como reutilizables — si la
+  // más reciente (o todas) fueron eliminadas a propósito desde /inbox, se
+  // crea una conversación nueva para este mismo lead en vez de resucitar
+  // la eliminada.
   const { data: conversacion } = await admin
     .from("conversaciones")
     .select("id")
     .eq("lead_id", lead.id)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
