@@ -90,6 +90,12 @@ export default function PipelinePage() {
     });
   };
 
+  const todosSeleccionados = leads.length > 0 && leads.every((l) => seleccionados.has(l.id));
+
+  const toggleSeleccionarTodos = () => {
+    setSeleccionados(todosSeleccionados ? new Set() : new Set(leads.map((l) => l.id)));
+  };
+
   const eliminarSeleccionados = async () => {
     setDeletingLeads(true);
     const res = await authedFetch("/api/leads-delete", {
@@ -207,22 +213,37 @@ export default function PipelinePage() {
         <div style={{ fontSize: 13, color: "var(--color-red)", marginBottom: 12 }}>{error}</div>
       ) : null}
 
-      {esAdmin && seleccionados.size > 0 ? (
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-          <button
-            onClick={() => setShowDeleteModal(true)}
+      {esAdmin && leads.length > 0 ? (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <label
             style={{
-              fontSize: 13,
-              fontWeight: 600,
-              padding: "9px 16px",
-              border: "none",
-              borderRadius: 2,
-              background: "var(--color-red)",
-              color: "#fff",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 12.5,
+              color: "var(--color-muted)",
+              cursor: "pointer",
             }}
           >
-            Eliminar seleccionados ({seleccionados.size})
-          </button>
+            <input type="checkbox" checked={todosSeleccionados} onChange={toggleSeleccionarTodos} style={{ cursor: "pointer" }} />
+            Seleccionar todos
+          </label>
+          {seleccionados.size > 0 ? (
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                padding: "9px 16px",
+                border: "none",
+                borderRadius: 2,
+                background: "var(--color-red)",
+                color: "#fff",
+              }}
+            >
+              Eliminar seleccionados ({seleccionados.size})
+            </button>
+          ) : null}
         </div>
       ) : null}
 

@@ -108,6 +108,12 @@ export default function LeadsInboxPage() {
     });
   };
 
+  const todosSeleccionados = leads.length > 0 && leads.every((l) => seleccionados.has(l.id));
+
+  const toggleSeleccionarTodos = () => {
+    setSeleccionados(todosSeleccionados ? new Set() : new Set(leads.map((l) => l.id)));
+  };
+
   // Mismo endpoint que /pipeline (netlify/functions/leads-delete.ts) — sin
   // lógica nueva del lado del servidor, solo el mismo POST desde otra
   // pantalla.
@@ -199,7 +205,15 @@ export default function LeadsInboxPage() {
             background: "var(--color-panel-2)",
           }}
         >
-          {isAdmin ? <div /> : null}
+          {isAdmin ? (
+            <input
+              type="checkbox"
+              checked={todosSeleccionados}
+              onChange={toggleSeleccionarTodos}
+              title="Seleccionar todos"
+              style={{ cursor: "pointer" }}
+            />
+          ) : null}
           <div>Contacto</div>
           <div>Canal / Origen</div>
           <div>Servicio</div>

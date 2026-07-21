@@ -24,6 +24,28 @@ const ACTIVIDAD_TIPOS = [
   { value: "recordatorio", label: "Recordatorio" },
 ];
 
+// SVG en vez de un emoji (📎) — el emoji se veía como un glifo roto según
+// la fuente/plataforma del navegador; un ícono vectorial propio siempre
+// se ve igual. currentColor hereda el color de texto de donde se use.
+function PaperclipIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ flexShrink: 0 }}
+    >
+      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+    </svg>
+  );
+}
+
 function toDatetimeLocalValue(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
@@ -607,7 +629,8 @@ function InboxView() {
                                 }}
                                 title={a.tipo_mime ?? undefined}
                               >
-                                📎 {a.nombre_original}
+                                <PaperclipIcon size={12} />
+                                {a.nombre_original}
                                 {a.tamano_bytes != null ? ` (${formatBytes(a.tamano_bytes)})` : ""}
                                 {descargando === a.id ? "…" : ""}
                               </div>
@@ -639,7 +662,8 @@ function InboxView() {
                           background: "var(--color-panel-2)",
                         }}
                       >
-                        📎 {a.nombre} ({formatBytes(a.tamano_bytes)})
+                        <PaperclipIcon size={12} />
+                        {a.nombre} ({formatBytes(a.tamano_bytes)})
                         <span
                           onClick={() => quitarAdjuntoPendiente(a.nombre)}
                           title="Quitar"
@@ -688,10 +712,12 @@ function InboxView() {
                       borderRadius: 2,
                       background: "var(--color-bg)",
                       color: "var(--color-text)",
-                      fontSize: 15,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
                   >
-                    📎
+                    <PaperclipIcon size={16} />
                   </button>
                   <input
                     value={replyText}
