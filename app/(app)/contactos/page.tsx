@@ -744,7 +744,9 @@ export default function ContactosPage() {
               </div>
             ) : null}
 
-            {tab === "actividades" ? <LeadActivitiesList leadId={detail.lead_id} /> : null}
+            {tab === "actividades" ? (
+              <LeadActivitiesList leadId={detail.lead_id} showToast={showToast} />
+            ) : null}
           </>
         )}
       </div>

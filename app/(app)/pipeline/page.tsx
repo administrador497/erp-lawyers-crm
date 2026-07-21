@@ -532,7 +532,7 @@ export default function PipelinePage() {
             <h2 style={{ fontFamily: "var(--font-heading)", fontSize: 16, fontWeight: 600, marginBottom: 16 }}>
               Actividades — {verActividadesLead.nombre_completo}
             </h2>
-            <LeadActivitiesList leadId={verActividadesLead.id} />
+            <LeadActivitiesList leadId={verActividadesLead.id} showToast={showToast} />
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
               <button
                 onClick={() => setVerActividadesLead(null)}

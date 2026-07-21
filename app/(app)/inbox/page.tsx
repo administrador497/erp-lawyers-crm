@@ -603,7 +603,7 @@ function InboxView() {
                     overflow: "auto",
                   }}
                 >
-                  <LeadActivitiesList leadId={activa.lead_id} />
+                  <LeadActivitiesList leadId={activa.lead_id} showToast={showToast} />
                 </div>
               ) : null}
 

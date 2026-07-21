@@ -6,16 +6,10 @@ import { createClient } from "../../../lib/supabase/client";
 import { formatIngreso } from "../../../lib/format";
 import { useToast } from "../../../components/useToast";
 import ToastHost from "../../../components/ToastHost";
+import { useActivityActions } from "../../../components/useActivityActions";
+import ActivityActionModals from "../../../components/ActivityActionModals";
+import { TIPOS, modalInputStyle, modalLabelStyle, toDatetimeLocalValue } from "../../../components/activityShared";
 import type { ActividadRow, ContactListRow } from "../../../lib/types";
-
-const TIPOS = [
-  { value: "llamada", label: "Llamada" },
-  { value: "correo", label: "Correo" },
-  { value: "whatsapp", label: "WhatsApp" },
-  { value: "reunion", label: "Reunión" },
-  { value: "tarea", label: "Tarea" },
-  { value: "recordatorio", label: "Recordatorio" },
-];
 
 async function authedFetch(path: string, init: RequestInit = {}) {
   const supabase = createClient();
@@ -32,31 +26,6 @@ async function authedFetch(path: string, init: RequestInit = {}) {
   });
 }
 
-function toDatetimeLocalValue(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
-    date.getHours()
-  )}:${pad(date.getMinutes())}`;
-}
-
-const modalInputStyle: React.CSSProperties = {
-  width: "100%",
-  boxSizing: "border-box",
-  padding: "9px 11px",
-  border: "1px solid var(--color-border)",
-  borderRadius: 2,
-  background: "var(--color-bg)",
-  color: "var(--color-text)",
-  fontSize: 13,
-};
-
-const modalLabelStyle: React.CSSProperties = {
-  fontSize: 12,
-  fontWeight: 600,
-  color: "var(--color-muted)",
-  marginBottom: 6,
-};
-
 export default function CalendarioPage() {
   const router = useRouter();
   const { toast, showToast } = useToast();
@@ -64,7 +33,6 @@ export default function CalendarioPage() {
   const [contactos, setContactos] = useState<ContactListRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const [showModal, setShowModal] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -73,10 +41,10 @@ export default function CalendarioPage() {
   const [formFecha, setFormFecha] = useState(toDatetimeLocalValue(new Date()));
   const [formDescripcion, setFormDescripcion] = useState("");
 
-  const [completingActivity, setCompletingActivity] = useState<ActividadRow | null>(null);
-  const [completeResultado, setCompleteResultado] = useState("");
-  const [completeProximaAccion, setCompleteProximaAccion] = useState("");
-  const [completingSubmitting, setCompletingSubmitting] = useState(false);
+  const activityActions = useActivityActions({
+    showToast,
+    onUpdated: (id, patch) => setActividades((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a))),
+  });
 
   const load = async () => {
     setLoading(true);
@@ -108,74 +76,6 @@ export default function CalendarioPage() {
   useEffect(() => {
     load();
   }, []);
-
-  // Reabrir es un toggle simple de un clic — no hace falta pedir nada de
-  // nuevo. Completar sí abre un modal (abajo) porque es el momento natural
-  // para capturar resultado/próxima acción, que "Generar seguimiento" luego
-  // reutiliza para prellenar la siguiente actividad.
-  const reabrirActividad = async (actividad: ActividadRow) => {
-    setTogglingId(actividad.id);
-    const res = await authedFetch("/api/activity-update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ activity_id: actividad.id, estado: "pendiente" }),
-    });
-    setTogglingId(null);
-
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      showToast(body.error ?? "No fue posible actualizar la actividad.");
-      return;
-    }
-
-    setActividades((prev) => prev.map((a) => (a.id === actividad.id ? { ...a, estado: "pendiente" } : a)));
-    showToast("Actividad reabierta.");
-  };
-
-  const abrirCompletarActividad = (actividad: ActividadRow) => {
-    setCompletingActivity(actividad);
-    setCompleteResultado(actividad.resultado ?? "");
-    setCompleteProximaAccion(actividad.proxima_accion ?? "");
-  };
-
-  const confirmarCompletarActividad = async () => {
-    if (!completingActivity) return;
-    setCompletingSubmitting(true);
-
-    const res = await authedFetch("/api/activity-update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        activity_id: completingActivity.id,
-        estado: "completada",
-        resultado: completeResultado.trim() || null,
-        proxima_accion: completeProximaAccion.trim() || null,
-      }),
-    });
-
-    setCompletingSubmitting(false);
-
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      showToast(body.error ?? "No fue posible completar la actividad.");
-      return;
-    }
-
-    setActividades((prev) =>
-      prev.map((a) =>
-        a.id === completingActivity.id
-          ? {
-              ...a,
-              estado: "completada",
-              resultado: completeResultado.trim() || null,
-              proxima_accion: completeProximaAccion.trim() || null,
-            }
-          : a
-      )
-    );
-    setCompletingActivity(null);
-    showToast("Actividad completada.");
-  };
 
   // Reutiliza el mismo modal de "+ Nueva actividad" en vez de duplicar uno
   // aparte — solo lo prellena con el lead, el tipo y la próxima acción que
@@ -317,8 +217,10 @@ export default function CalendarioPage() {
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
                   <button
-                    onClick={() => (completada ? reabrirActividad(a) : abrirCompletarActividad(a))}
-                    disabled={togglingId === a.id}
+                    onClick={() =>
+                      completada ? activityActions.reabrirActividad(a) : activityActions.abrirCompletarActividad(a)
+                    }
+                    disabled={activityActions.togglingId === a.id}
                     style={{
                       fontSize: 12,
                       padding: "6px 12px",
@@ -326,10 +228,23 @@ export default function CalendarioPage() {
                       borderRadius: 2,
                       background: completada ? "transparent" : "var(--color-red)",
                       color: completada ? "var(--color-muted)" : "#fff",
-                      opacity: togglingId === a.id ? 0.6 : 1,
+                      opacity: activityActions.togglingId === a.id ? 0.6 : 1,
                     }}
                   >
                     {completada ? "Reabrir" : "Completar"}
+                  </button>
+                  <button
+                    onClick={() => activityActions.abrirEditarActividad(a)}
+                    style={{
+                      fontSize: 11.5,
+                      padding: "5px 10px",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: 2,
+                      background: "var(--color-panel)",
+                      color: "var(--color-text)",
+                    }}
+                  >
+                    Editar
                   </button>
                   {completada && a.lead_id ? (
                     <button
@@ -475,93 +390,7 @@ export default function CalendarioPage() {
         </div>
       ) : null}
 
-      {completingActivity ? (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.35)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 100,
-          }}
-        >
-          <div
-            style={{
-              width: 380,
-              background: "var(--color-panel)",
-              border: "1px solid var(--color-border)",
-              borderRadius: 2,
-              padding: 24,
-              boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
-            }}
-          >
-            <h2 style={{ fontFamily: "var(--font-heading)", fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
-              Completar actividad
-            </h2>
-            <div style={{ fontSize: 12.5, color: "var(--color-muted)", marginBottom: 16 }}>
-              {completingActivity.lead_nombre} · {TIPOS.find((t) => t.value === completingActivity.tipo)?.label ?? completingActivity.tipo}
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div>
-                <div style={modalLabelStyle}>Resultado (opcional)</div>
-                <textarea
-                  value={completeResultado}
-                  onChange={(e) => setCompleteResultado(e.target.value)}
-                  rows={2}
-                  placeholder="¿Qué pasó?"
-                  style={{ ...modalInputStyle, resize: "vertical" }}
-                />
-              </div>
-              <div>
-                <div style={modalLabelStyle}>Próxima acción (opcional)</div>
-                <textarea
-                  value={completeProximaAccion}
-                  onChange={(e) => setCompleteProximaAccion(e.target.value)}
-                  rows={2}
-                  placeholder="Se usa para prellenar 'Generar seguimiento'"
-                  style={{ ...modalInputStyle, resize: "vertical" }}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
-              <button
-                onClick={() => setCompletingActivity(null)}
-                disabled={completingSubmitting}
-                style={{
-                  fontSize: 13,
-                  padding: "9px 16px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 2,
-                  background: "var(--color-panel)",
-                  color: "var(--color-text)",
-                }}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={confirmarCompletarActividad}
-                disabled={completingSubmitting}
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  padding: "9px 16px",
-                  border: "none",
-                  borderRadius: 2,
-                  background: "var(--color-red)",
-                  color: "#fff",
-                  opacity: completingSubmitting ? 0.6 : 1,
-                }}
-              >
-                {completingSubmitting ? "Guardando…" : "Marcar como completada"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <ActivityActionModals actions={activityActions} />
 
       <ToastHost message={toast} />
     </>
