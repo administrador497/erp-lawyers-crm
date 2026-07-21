@@ -401,7 +401,7 @@ function InboxView() {
           overflow: "hidden",
         }}
       >
-        <div style={{ borderRight: "1px solid var(--color-border)", overflow: "auto" }}>
+        <div style={{ borderRight: "1px solid var(--color-border)", overflow: "auto", minHeight: 0 }}>
           {loadingList ? (
             <div style={{ padding: "20px 16px", fontSize: 13, color: "var(--color-muted)" }}>
               Cargando…
@@ -464,7 +464,7 @@ function InboxView() {
           )}
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column" }}>
+        <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
           {!activa ? (
             <div
               style={{
@@ -556,6 +556,7 @@ function InboxView() {
               <div
                 style={{
                   flex: 1,
+                  minHeight: 0,
                   overflow: "auto",
                   padding: "18px 20px",
                   display: "flex",
@@ -584,7 +585,9 @@ function InboxView() {
                           padding: "10px 14px",
                         }}
                       >
-                        <div style={{ fontSize: 12.5 }}>{m.cuerpo}</div>
+                        <div style={{ fontSize: 12.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                          {m.cuerpo}
+                        </div>
                         {m.adjuntos && m.adjuntos.length > 0 ? (
                           <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8 }}>
                             {m.adjuntos.map((a) => (
