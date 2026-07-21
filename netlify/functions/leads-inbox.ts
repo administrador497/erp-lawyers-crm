@@ -30,6 +30,7 @@ export const handler: Handler = async (event) => {
        responsable:responsable_id ( id, nombre_completo )`
     )
     .eq("estado", "Nuevo")
+    .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
   if (leadsError) {

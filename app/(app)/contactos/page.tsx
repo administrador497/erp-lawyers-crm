@@ -5,7 +5,7 @@ import { createClient } from "../../../lib/supabase/client";
 import { formatCurrency, formatIngreso, priorityStyle } from "../../../lib/format";
 import { useToast } from "../../../components/useToast";
 import ToastHost from "../../../components/ToastHost";
-import type { ContactDetail, ContactListRow, HistorialItem, ServicioRow } from "../../../lib/types";
+import type { ContactDetail, ContactListRow, CurrentUsuario, HistorialItem, ServicioRow } from "../../../lib/types";
 
 async function authedFetch(path: string, init: RequestInit = {}) {
   const supabase = createClient();
@@ -126,8 +126,10 @@ const FORM_VACIO: NuevoContactoForm = {
 
 export default function ContactosPage() {
   const { toast, showToast } = useToast();
+  const [usuario, setUsuario] = useState<CurrentUsuario | null>(null);
   const [contactos, setContactos] = useState<ContactListRow[]>([]);
   const [servicios, setServicios] = useState<ServicioRow[]>([]);
+  const [deleting, setDeleting] = useState(false);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ContactDetail | null>(null);
   const [historial, setHistorial] = useState<HistorialItem[]>([]);
@@ -161,6 +163,9 @@ export default function ContactosPage() {
 
   useEffect(() => {
     loadContactos();
+    authedFetch("/api/auth-me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body) => setUsuario(body?.usuario ?? null));
   }, []);
 
   const openCreateModal = () => {
@@ -200,6 +205,34 @@ export default function ContactosPage() {
     setShowCreateModal(false);
     showToast("Contacto creado y asignado a Bayron.");
     await loadContactos(body.lead_id);
+  };
+
+  const deleteContact = async () => {
+    if (!detail) return;
+    if (
+      !window.confirm(
+        `¿Eliminar a ${detail.nombre_completo}? Dejará de aparecer en Contactos, Pipeline, Bandeja y Calendario. Esta acción no borra su historial y puede revertirse solo desde la base de datos.`
+      )
+    ) {
+      return;
+    }
+    setDeleting(true);
+    const res = await authedFetch("/api/contact-delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contacto_id: detail.contacto_id }),
+    });
+    setDeleting(false);
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showToast(body.error ?? "No fue posible eliminar el contacto.");
+      return;
+    }
+
+    showToast("Contacto eliminado.");
+    setSelectedLeadId(null);
+    await loadContactos();
   };
 
   useEffect(() => {
@@ -391,18 +424,38 @@ export default function ContactosPage() {
                   {detail.servicio ?? "Sin servicio"} · {detail.pais ?? "—"}
                 </div>
               </div>
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  padding: "4px 12px",
-                  borderRadius: 10,
-                  background: "var(--color-panel-2)",
-                  color: "var(--color-blue)",
-                }}
-              >
-                {detail.etapa ?? detail.estado}
-              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: "4px 12px",
+                    borderRadius: 10,
+                    background: "var(--color-panel-2)",
+                    color: "var(--color-blue)",
+                  }}
+                >
+                  {detail.etapa ?? detail.estado}
+                </span>
+                {usuario?.rol === "Administrador general" ? (
+                  <button
+                    onClick={deleteContact}
+                    disabled={deleting}
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      padding: "6px 12px",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: 2,
+                      background: "var(--color-panel)",
+                      color: "var(--color-red)",
+                      opacity: deleting ? 0.6 : 1,
+                    }}
+                  >
+                    {deleting ? "Eliminando…" : "Eliminar contacto"}
+                  </button>
+                ) : null}
+              </div>
             </div>
 
             <div style={{ display: "flex", gap: 8, marginBottom: 18, alignItems: "center" }}>

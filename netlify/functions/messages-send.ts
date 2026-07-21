@@ -131,7 +131,7 @@ export const handler: Handler = async (event) => {
       const raw = buildRawEmail({
         from: buzon.correo,
         to: destinatario,
-        subject: asuntoEnviado,
+        subject: asuntoEnviado ?? ASUNTO_POR_DEFECTO,
         body: cuerpo.trim(),
         inReplyTo: ultimoConReferencia?.referencias_hilo ?? null,
         references: ultimoConReferencia?.referencias_hilo ?? null,

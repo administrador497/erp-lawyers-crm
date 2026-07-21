@@ -42,6 +42,7 @@ export const handler: Handler = async (event) => {
        responsable:responsable_id ( nombre_completo )`
     )
     .eq("id", leadId)
+    .is("deleted_at", null)
     .maybeSingle();
 
   if (leadError || !lead) {

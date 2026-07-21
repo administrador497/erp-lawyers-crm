@@ -36,6 +36,7 @@ export const handler: Handler = async (event) => {
   let query = admin
     .from("conversaciones")
     .select(CONVERSACION_SELECT)
+    .is("lead.deleted_at", null)
     .order("created_at", { ascending: false });
 
   if (auth.usuario.rol !== "Administrador general") {

@@ -48,7 +48,8 @@ export const handler: Handler = async (event) => {
        servicio:servicio_id ( nombre ),
        responsable:responsable_id ( nombre_completo )`
     )
-    .eq("pipeline_id", pipeline.id);
+    .eq("pipeline_id", pipeline.id)
+    .is("deleted_at", null);
 
   if (auth.usuario.rol !== "Administrador general") {
     leadsQuery = leadsQuery.eq("responsable_id", auth.usuario.id);

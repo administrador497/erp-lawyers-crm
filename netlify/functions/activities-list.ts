@@ -23,11 +23,12 @@ export const handler: Handler = async (event) => {
     .from("actividades")
     .select(
       `id, tipo, fecha, estado, descripcion, resultado, proxima_accion, lead_id, responsable_id,
-       lead:lead_id ( id,
+       lead:lead_id!inner ( id,
          contacto:contacto_id ( nombre, primer_apellido, segundo_apellido ),
          servicio:servicio_id ( nombre ) ),
        responsable:responsable_id ( nombre_completo )`
     )
+    .is("lead.deleted_at", null)
     .order("fecha", { ascending: true });
 
   if (auth.usuario.rol !== "Administrador general") {

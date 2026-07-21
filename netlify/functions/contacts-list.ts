@@ -25,6 +25,7 @@ export const handler: Handler = async (event) => {
        contacto:contacto_id ( nombre, primer_apellido, segundo_apellido ),
        servicio:servicio_id ( nombre )`
     )
+    .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
   if (auth.usuario.rol !== "Administrador general") {
