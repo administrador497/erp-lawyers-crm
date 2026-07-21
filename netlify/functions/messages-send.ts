@@ -17,12 +17,18 @@ type SendBody = {
 // marks the conversación as active. It does NOT actually dispatch anything
 // over email or WhatsApp yet.
 //
-// TODO(real-send): once Google Workspace/Microsoft 365 OAuth (per-user
-// mailbox, README "Correo") and the WhatsApp Business Platform integration
-// (README "WhatsApp") are wired up, call them here — after the insert
-// below succeeds, before returning — so a DB row never exists without an
-// attempted real delivery, and a delivery failure can be reflected back
-// (e.g. a `estado_envio` column) instead of silently pretending it worked.
+// TODO(real-send): the OAuth *connection* now exists (migrations/
+// 011_buzones_correo.sql + oauth-google-start.ts/oauth-google-callback.ts),
+// but nothing here uses it yet. Once wired up, this should: look up the
+// sender's row in `buzones_correo` (proveedor = 'correo' → 'google' for
+// now), decrypt access_token_cifrado/refresh_token_cifrado via
+// _shared/tokenCrypto.ts, refresh the access_token with Google if
+// expires_at has passed, then call the Gmail API — same for the WhatsApp
+// Business Platform integration (README "WhatsApp"), still unbuilt. Do
+// this after the insert below succeeds, before returning, so a DB row
+// never exists without an attempted real delivery, and a delivery failure
+// can be reflected back (e.g. an `estado_envio` column) instead of
+// silently pretending it worked.
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return jsonResponse(405, { error: "Método no permitido." });
@@ -99,9 +105,9 @@ export const handler: Handler = async (event) => {
     return jsonResponse(500, { error: "No fue posible guardar el mensaje." });
   }
 
-  // TODO(real-send): dispatch via OAuth email / WhatsApp Business Platform
-  // here. Nothing has actually been sent to the contact at this point —
-  // only saved to our own database.
+  // TODO(real-send): dispatch via the connected buzón (see header comment
+  // above) / WhatsApp Business Platform here. Nothing has actually been
+  // sent to the contact at this point — only saved to our own database.
 
   await admin
     .from("conversaciones")

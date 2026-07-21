@@ -4,8 +4,9 @@ const nextConfig = {
   experimental: {
     // Documented Next 14.x escape hatch (nextjs.org/docs/messages/missing-
     // suspense-with-csr-bailout). Our only useSearchParams() usages
-    // (app/login/page.tsx, app/(app)/inbox/page.tsx) are already wrapped in
-    // <Suspense>, so disabling the bailout check doesn't hide a real bug.
+    // (app/login/page.tsx, app/(app)/inbox/page.tsx, app/(app)/perfil/page.tsx)
+    // are already wrapped in <Suspense>, so disabling the bailout check
+    // doesn't hide a real bug.
     // Gone entirely in Next 15+.
     missingSuspenseWithCSRBailout: false,
   },

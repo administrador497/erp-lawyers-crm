@@ -34,6 +34,7 @@ const VIEW_TITLES: Record<string, string> = {
   "/formularios": "Constructor de formularios",
   "/reportes": "Reportes",
   "/usuarios": "Usuarios y roles",
+  "/perfil": "Mi perfil",
 };
 
 export type AppShellUser = {
@@ -212,42 +213,55 @@ export default function AppShell({
             gap: 8,
           }}
         >
-          <div
+          <Link
+            href="/perfil"
+            title="Mi perfil"
             style={{
-              width: 30,
-              height: 30,
-              borderRadius: "50%",
-              background: "var(--color-red)",
-              color: "#fff",
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              fontSize: 12,
-              fontWeight: 700,
-              flexShrink: 0,
+              gap: 8,
+              flex: 1,
+              minWidth: 0,
+              textDecoration: "none",
             }}
           >
-            {currentUser.initials}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
             <div
               style={{
+                width: 30,
+                height: 30,
+                borderRadius: "50%",
+                background: "var(--color-red)",
                 color: "#fff",
-                fontSize: 12.5,
-                fontWeight: 600,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 12,
+                fontWeight: 700,
+                flexShrink: 0,
               }}
             >
-              {currentUser.nombre_completo}
+              {currentUser.initials}
             </div>
-            <div style={{ color: "var(--color-cream)", fontSize: 11 }}>{currentUser.rol}</div>
-          </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  color: "#fff",
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {currentUser.nombre_completo}
+              </div>
+              <div style={{ color: "var(--color-cream)", fontSize: 11 }}>{currentUser.rol}</div>
+            </div>
+          </Link>
           <div
             onClick={doLogout}
             title="Cerrar sesión"
-            style={{ color: "var(--color-cream)", fontSize: 11, cursor: "pointer" }}
+            style={{ color: "var(--color-cream)", fontSize: 11, cursor: "pointer", flexShrink: 0 }}
           >
             Salir
           </div>
