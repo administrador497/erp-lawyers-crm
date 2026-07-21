@@ -44,6 +44,11 @@ export type NuevoContactoParams = {
 // de triplicarla — contact-create.ts es quien la usa por ahora;
 // leads-create.ts/forms-submit.ts quedan con su copia inline tal cual,
 // sin tocar código que ya está en producción.
+//
+// Un contacto eliminado (soft-delete, contactos.deleted_at) no cuenta como
+// match: se trata como si no existiera y se crea uno nuevo con ese mismo
+// correo/teléfono, en vez de reactivar en silencio uno que un admin
+// eliminó a propósito (mismo criterio que gmail-poll.ts).
 export async function buscarOCrearContacto(
   admin: SupabaseAdmin,
   params: NuevoContactoParams
@@ -54,14 +59,20 @@ export async function buscarOCrearContacto(
   let contactoId: string | null = null;
 
   if (correo) {
-    const { data } = await admin.from("contacto_correos").select("contacto_id").eq("correo", correo).maybeSingle();
+    const { data } = await admin
+      .from("contacto_correos")
+      .select("contacto_id, contacto:contacto_id!inner ( deleted_at )")
+      .eq("correo", correo)
+      .is("contacto.deleted_at", null)
+      .maybeSingle();
     contactoId = data?.contacto_id ?? null;
   }
   if (!contactoId && telefono) {
     const { data } = await admin
       .from("contacto_telefonos")
-      .select("contacto_id")
+      .select("contacto_id, contacto:contacto_id!inner ( deleted_at )")
       .eq("numero_e164", telefono)
+      .is("contacto.deleted_at", null)
       .maybeSingle();
     contactoId = data?.contacto_id ?? null;
   }

@@ -262,8 +262,16 @@ async function procesarMensajeEntrante(
   return true;
 }
 
+// Un contacto eliminado (soft-delete) no cuenta como match — se trata como
+// remitente desconocido y se crea un contacto nuevo con ese correo, en vez
+// de reactivar en silencio uno que un admin eliminó a propósito.
 async function buscarContactoPorCorreo(admin: SupabaseAdmin, correo: string): Promise<string | null> {
-  const { data } = await admin.from("contacto_correos").select("contacto_id").eq("correo", correo).maybeSingle();
+  const { data } = await admin
+    .from("contacto_correos")
+    .select("contacto_id, contacto:contacto_id!inner ( deleted_at )")
+    .eq("correo", correo)
+    .is("contacto.deleted_at", null)
+    .maybeSingle();
   return data?.contacto_id ?? null;
 }
 

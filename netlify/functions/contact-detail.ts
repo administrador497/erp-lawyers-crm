@@ -34,7 +34,7 @@ export const handler: Handler = async (event) => {
     .from("leads")
     .select(
       `id, canal_origen, prioridad, valor_potencial, estado, responsable_id, created_at,
-       contacto:contacto_id ( id, nombre, primer_apellido, segundo_apellido, pais, etiquetas, notas,
+       contacto:contacto_id!inner ( id, nombre, primer_apellido, segundo_apellido, pais, etiquetas, notas, deleted_at,
          contacto_correos ( correo, es_principal ),
          contacto_telefonos ( numero_e164, es_principal ) ),
        servicio:servicio_id ( nombre ),
@@ -43,6 +43,7 @@ export const handler: Handler = async (event) => {
     )
     .eq("id", leadId)
     .is("deleted_at", null)
+    .is("contacto.deleted_at", null)
     .maybeSingle();
 
   if (leadError || !lead) {
