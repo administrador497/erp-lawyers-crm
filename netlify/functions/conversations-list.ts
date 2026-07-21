@@ -5,7 +5,7 @@ import { correoPrincipal, nombreCompleto, telefonoPrincipal } from "./_shared/co
 
 const CONVERSACION_SELECT = `
   id, estado, created_at,
-  lead:lead_id!inner ( id, estado, prioridad, canal_origen, responsable_id,
+  lead:lead_id!inner ( id, estado, prioridad, canal_origen, responsable_id, etapa_id,
     servicio:servicio_id ( nombre ),
     etapa:etapa_id ( nombre ),
     responsable:responsable_id ( id, nombre_completo )
@@ -54,11 +54,12 @@ export const handler: Handler = async (event) => {
     string,
     { cuerpo: string; canal: string; direccion: string; created_at: string }
   > = {};
+  const noLeidosPorConversacion: Record<string, number> = {};
 
   if (ids.length > 0) {
     const { data: mensajes } = await admin
       .from("mensajes")
-      .select("conversacion_id, cuerpo, canal, direccion, created_at")
+      .select("conversacion_id, cuerpo, canal, direccion, leido_en, created_at")
       .in("conversacion_id", ids)
       .order("created_at", { ascending: false });
 
@@ -66,6 +67,9 @@ export const handler: Handler = async (event) => {
       // Ordered desc, so the first message seen per conversation is the latest.
       if (!ultimoMensajePorConversacion[m.conversacion_id]) {
         ultimoMensajePorConversacion[m.conversacion_id] = m;
+      }
+      if (m.direccion === "entrante" && !m.leido_en) {
+        noLeidosPorConversacion[m.conversacion_id] = (noLeidosPorConversacion[m.conversacion_id] ?? 0) + 1;
       }
     }
   }
@@ -79,6 +83,7 @@ export const handler: Handler = async (event) => {
       id: c.id,
       estado: c.estado,
       lead_id: lead.id ?? null,
+      etapa_id: lead.etapa_id ?? null,
       canal: c.canal?.tipo ?? lead.canal_origen ?? null,
       contacto_nombre: nombreCompleto(contacto),
       contacto_correo: correoPrincipal(contacto.contacto_correos),
@@ -91,8 +96,31 @@ export const handler: Handler = async (event) => {
       responsable_nombre: lead.responsable?.nombre_completo ?? null,
       ultimo_mensaje: ultimo?.cuerpo ?? null,
       ultimo_mensaje_fecha: ultimo?.created_at ?? c.created_at,
+      mensajes_no_leidos: noLeidosPorConversacion[c.id] ?? 0,
     };
   });
 
-  return jsonResponse(200, { conversaciones: result });
+  // Catálogos para los controles de /inbox (cambiar etapa, registrar
+  // motivo de pérdida) — mismo criterio que pipeline-list.ts, bundleados
+  // acá porque esta es la lista que la página ya pide al cargar (igual que
+  // contacts-list.ts manda `servicios`, users-list.ts manda roles/equipos).
+  const { data: pipeline } = await admin
+    .from("pipelines")
+    .select("id")
+    .eq("nombre", "Pipeline general")
+    .maybeSingle();
+
+  let etapas: { id: string; nombre: string; orden: number }[] = [];
+  let motivosPerdida: { id: string; nombre: string }[] = [];
+
+  if (pipeline) {
+    const [{ data: etapasData }, { data: motivosData }] = await Promise.all([
+      admin.from("etapas").select("id, nombre, orden").eq("pipeline_id", pipeline.id).order("orden", { ascending: true }),
+      admin.from("motivos_perdida").select("id, nombre").order("orden", { ascending: true }),
+    ]);
+    etapas = etapasData ?? [];
+    motivosPerdida = motivosData ?? [];
+  }
+
+  return jsonResponse(200, { conversaciones: result, etapas, motivosPerdida });
 };

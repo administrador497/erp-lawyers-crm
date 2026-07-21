@@ -35,6 +35,17 @@ export const handler: Handler = async (event) => {
 
   const admin = getSupabaseAdmin();
 
+  // Marca como leídos los entrantes de esta conversación — abrir el hilo es
+  // la única señal de "lectura" que existe en esta app. No bloquea la
+  // respuesta si falla (defecto menor: el badge de no-leídos quedaría
+  // desactualizado hasta el siguiente intento), así que no se revisa error.
+  await admin
+    .from("mensajes")
+    .update({ leido_en: new Date().toISOString() })
+    .eq("conversacion_id", conversacionId)
+    .eq("direccion", "entrante")
+    .is("leido_en", null);
+
   const { data: mensajes, error } = await admin
     .from("mensajes")
     .select("id, canal, direccion, remitente, destinatarios, asunto, cuerpo, created_at")

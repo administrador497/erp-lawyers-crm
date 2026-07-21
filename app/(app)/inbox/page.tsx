@@ -6,12 +6,30 @@ import { createClient } from "../../../lib/supabase/client";
 import { formatIngreso } from "../../../lib/format";
 import { useToast } from "../../../components/useToast";
 import ToastHost from "../../../components/ToastHost";
-import type { AdjuntoRow, ConversacionRow, MensajeRow } from "../../../lib/types";
+import type { AdjuntoRow, ConversacionRow, EtapaRow, MensajeRow, MotivoPerdidaRow } from "../../../lib/types";
 
 const CANAL_LABEL: Record<string, string> = {
   correo: "Correo",
   whatsapp: "WhatsApp",
 };
+
+const ETAPA_PERDIDO = "Perdido";
+
+const ACTIVIDAD_TIPOS = [
+  { value: "llamada", label: "Llamada" },
+  { value: "correo", label: "Correo" },
+  { value: "whatsapp", label: "WhatsApp" },
+  { value: "reunion", label: "Reunión" },
+  { value: "tarea", label: "Tarea" },
+  { value: "recordatorio", label: "Recordatorio" },
+];
+
+function toDatetimeLocalValue(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
+    date.getHours()
+  )}:${pad(date.getMinutes())}`;
+}
 
 // Mismo límite que messages-send.ts (MAX_ADJUNTOS_BYTES) — se valida acá
 // también para avisar antes de intentar el envío, no solo después.
@@ -67,6 +85,19 @@ function InboxView() {
   const [adjuntosPendientes, setAdjuntosPendientes] = useState<ArchivoPendiente[]>([]);
   const [descargando, setDescargando] = useState<string | null>(null);
 
+  const [etapas, setEtapas] = useState<EtapaRow[]>([]);
+  const [motivosPerdida, setMotivosPerdida] = useState<MotivoPerdidaRow[]>([]);
+  const [movingEtapa, setMovingEtapa] = useState(false);
+  const [lossPrompt, setLossPrompt] = useState<{ etapaId: string; etapaNombre: string } | null>(null);
+  const [selectedMotivoId, setSelectedMotivoId] = useState("");
+  const [confirmingLoss, setConfirmingLoss] = useState(false);
+
+  const [showActivityModal, setShowActivityModal] = useState(false);
+  const [creatingActivity, setCreatingActivity] = useState(false);
+  const [activityTipo, setActivityTipo] = useState("llamada");
+  const [activityFecha, setActivityFecha] = useState(toDatetimeLocalValue(new Date()));
+  const [activityDescripcion, setActivityDescripcion] = useState("");
+
   useEffect(() => {
     const load = async () => {
       setLoadingList(true);
@@ -86,6 +117,8 @@ function InboxView() {
       const convBody = await convRes.json();
       const lista: ConversacionRow[] = convBody.conversaciones ?? [];
       setConversaciones(lista);
+      setEtapas(convBody.etapas ?? []);
+      setMotivosPerdida(convBody.motivosPerdida ?? []);
 
       if (meRes.ok) {
         const meBody = await meRes.json();
@@ -124,6 +157,10 @@ function InboxView() {
       }
       const body = await res.json();
       setMensajes(body.mensajes ?? []);
+      // messages-list.ts ya marcó los entrantes como leídos en el servidor —
+      // esto solo refleja eso localmente sin esperar a recargar
+      // conversations-list.ts entero.
+      setConversaciones((prev) => prev.map((c) => (c.id === selectedId ? { ...c, mensajes_no_leidos: 0 } : c)));
       setLoadingMessages(false);
     };
 
@@ -180,6 +217,93 @@ function InboxView() {
     }
     const body = await res.json();
     window.open(body.url, "_blank", "noopener,noreferrer");
+  };
+
+  const moverEtapa = async (etapaId: string, etapaNombre: string, motivoPerdidaId?: string) => {
+    if (!activa?.lead_id) return false;
+    setMovingEtapa(true);
+    const res = await authedFetch("/api/leads-move-stage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        lead_id: activa.lead_id,
+        etapa_id: etapaId,
+        ...(motivoPerdidaId ? { motivo_perdida_id: motivoPerdidaId } : {}),
+      }),
+    });
+    setMovingEtapa(false);
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showToast(body.error ?? "No fue posible mover el lead de etapa.");
+      return false;
+    }
+
+    setConversaciones((prev) =>
+      prev.map((c) => (c.id === selectedId ? { ...c, etapa_id: etapaId, etapa: etapaNombre } : c))
+    );
+    showToast(`Movido a "${etapaNombre}". Visible en Pipeline.`);
+    return true;
+  };
+
+  const cambiarEtapa = (nuevaEtapaId: string) => {
+    if (!activa || movingEtapa || nuevaEtapaId === activa.etapa_id) return;
+    const nuevaEtapa = etapas.find((e) => e.id === nuevaEtapaId);
+    if (!nuevaEtapa) return;
+
+    if (nuevaEtapa.nombre === ETAPA_PERDIDO) {
+      // Se pide el motivo antes de mandar el cambio — a diferencia del
+      // Kanban en /pipeline, acá no hay una tarjeta que "salte" de columna
+      // para revertir si se cancela, así que no se llama a la API hasta
+      // confirmar.
+      setLossPrompt({ etapaId: nuevaEtapaId, etapaNombre: nuevaEtapa.nombre });
+      setSelectedMotivoId(motivosPerdida[0]?.id ?? "");
+      return;
+    }
+
+    moverEtapa(nuevaEtapaId, nuevaEtapa.nombre);
+  };
+
+  const cancelLossPrompt = () => setLossPrompt(null);
+
+  const confirmLossPrompt = async () => {
+    if (!lossPrompt || !selectedMotivoId) return;
+    setConfirmingLoss(true);
+    await moverEtapa(lossPrompt.etapaId, lossPrompt.etapaNombre, selectedMotivoId);
+    setConfirmingLoss(false);
+    setLossPrompt(null);
+  };
+
+  const abrirNuevaActividad = () => {
+    setActivityTipo("llamada");
+    setActivityFecha(toDatetimeLocalValue(new Date()));
+    setActivityDescripcion("");
+    setShowActivityModal(true);
+  };
+
+  const crearActividad = async () => {
+    if (!activa?.lead_id) return;
+    setCreatingActivity(true);
+    const res = await authedFetch("/api/activity-create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        lead_id: activa.lead_id,
+        tipo: activityTipo,
+        fecha: new Date(activityFecha).toISOString(),
+        descripcion: activityDescripcion.trim() || null,
+      }),
+    });
+    setCreatingActivity(false);
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showToast(body.error ?? "No fue posible crear la actividad.");
+      return;
+    }
+
+    setShowActivityModal(false);
+    showToast("Actividad creada. Visible en Calendario.");
   };
 
   const sendReply = async () => {
@@ -299,15 +423,34 @@ function InboxView() {
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{c.contacto_nombre}</div>
-                  <div style={{ fontSize: 10.5, color: "var(--color-muted)" }}>
-                    {CANAL_LABEL[c.canal ?? ""] ?? c.canal ?? "—"}
+                  <div style={{ fontSize: 13, fontWeight: c.mensajes_no_leidos > 0 ? 700 : 600 }}>
+                    {c.contacto_nombre}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    {c.mensajes_no_leidos > 0 ? (
+                      <span
+                        style={{
+                          background: "var(--color-red)",
+                          color: "#fff",
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: "1px 7px",
+                          borderRadius: 10,
+                        }}
+                      >
+                        {c.mensajes_no_leidos}
+                      </span>
+                    ) : null}
+                    <div style={{ fontSize: 10.5, color: "var(--color-muted)" }}>
+                      {CANAL_LABEL[c.canal ?? ""] ?? c.canal ?? "—"}
+                    </div>
                   </div>
                 </div>
                 <div
                   style={{
                     fontSize: 12,
-                    color: "var(--color-muted)",
+                    fontWeight: c.mensajes_no_leidos > 0 ? 700 : 400,
+                    color: c.mensajes_no_leidos > 0 ? "var(--color-text)" : "var(--color-muted)",
                     marginTop: 3,
                     whiteSpace: "nowrap",
                     overflow: "hidden",
@@ -353,18 +496,61 @@ function InboxView() {
                     {activa.responsable_nombre ?? "Sin asignar"}
                   </div>
                 </div>
-                <span
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    padding: "3px 10px",
-                    borderRadius: 10,
-                    background: "var(--color-panel-2)",
-                    color: "var(--color-blue)",
-                  }}
-                >
-                  {activa.etapa ?? activa.lead_estado}
-                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  {etapas.length > 0 && activa.lead_id ? (
+                    <select
+                      value={activa.etapa_id ?? ""}
+                      onChange={(e) => cambiarEtapa(e.target.value)}
+                      disabled={movingEtapa}
+                      title="Cambiar etapa del pipeline"
+                      style={{
+                        fontSize: 11.5,
+                        fontWeight: 700,
+                        padding: "5px 9px",
+                        borderRadius: 10,
+                        border: "none",
+                        background: "var(--color-panel-2)",
+                        color: "var(--color-blue)",
+                        opacity: movingEtapa ? 0.6 : 1,
+                      }}
+                    >
+                      {etapas.map((e) => (
+                        <option key={e.id} value={e.id}>
+                          {e.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: "3px 10px",
+                        borderRadius: 10,
+                        background: "var(--color-panel-2)",
+                        color: "var(--color-blue)",
+                      }}
+                    >
+                      {activa.etapa ?? activa.lead_estado}
+                    </span>
+                  )}
+                  <button
+                    onClick={abrirNuevaActividad}
+                    disabled={!activa.lead_id}
+                    style={{
+                      fontSize: 11.5,
+                      fontWeight: 600,
+                      padding: "6px 12px",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: 2,
+                      background: "var(--color-panel)",
+                      color: "var(--color-text)",
+                      opacity: activa.lead_id ? 1 : 0.5,
+                    }}
+                  >
+                    + Nueva actividad
+                  </button>
+                </div>
               </div>
 
               <div
@@ -546,6 +732,235 @@ function InboxView() {
           )}
         </div>
       </div>
+
+      {lossPrompt ? (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.35)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 100,
+          }}
+        >
+          <div
+            style={{
+              width: 340,
+              background: "var(--color-panel)",
+              border: "1px solid var(--color-border)",
+              borderRadius: 2,
+              padding: 24,
+              boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
+            }}
+          >
+            <h2 style={{ fontFamily: "var(--font-heading)", fontSize: 16, fontWeight: 600, marginBottom: 6 }}>
+              Motivo de la pérdida
+            </h2>
+            <div style={{ fontSize: 12.5, color: "var(--color-muted)", marginBottom: 16 }}>
+              Indique por qué se pierde este lead antes de confirmar el movimiento.
+            </div>
+
+            {motivosPerdida.length === 0 ? (
+              <div style={{ fontSize: 12.5, color: "var(--color-red)", marginBottom: 16 }}>
+                No hay motivos configurados. Ejecute migrations/007_pipeline_etapas_v2.sql.
+              </div>
+            ) : (
+              <select
+                value={selectedMotivoId}
+                onChange={(e) => setSelectedMotivoId(e.target.value)}
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  padding: "9px 11px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 2,
+                  background: "var(--color-bg)",
+                  color: "var(--color-text)",
+                  fontSize: 13,
+                  marginBottom: 20,
+                }}
+              >
+                {motivosPerdida.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.nombre}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              <button
+                onClick={cancelLossPrompt}
+                disabled={confirmingLoss}
+                style={{
+                  fontSize: 13,
+                  padding: "9px 16px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 2,
+                  background: "var(--color-panel)",
+                  color: "var(--color-text)",
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmLossPrompt}
+                disabled={confirmingLoss || !selectedMotivoId}
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  padding: "9px 16px",
+                  border: "none",
+                  borderRadius: 2,
+                  background: "var(--color-red)",
+                  color: "#fff",
+                  opacity: confirmingLoss || !selectedMotivoId ? 0.6 : 1,
+                }}
+              >
+                {confirmingLoss ? "Confirmando…" : "Confirmar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showActivityModal && activa ? (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.35)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 100,
+          }}
+        >
+          <div
+            style={{
+              width: 380,
+              background: "var(--color-panel)",
+              border: "1px solid var(--color-border)",
+              borderRadius: 2,
+              padding: 24,
+              boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
+            }}
+          >
+            <h2 style={{ fontFamily: "var(--font-heading)", fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
+              Nueva actividad
+            </h2>
+            <div style={{ fontSize: 12.5, color: "var(--color-muted)", marginBottom: 16 }}>
+              Para: {activa.contacto_nombre}
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-muted)", marginBottom: 6 }}>
+                  Tipo
+                </div>
+                <select
+                  value={activityTipo}
+                  onChange={(e) => setActivityTipo(e.target.value)}
+                  style={{
+                    width: "100%",
+                    boxSizing: "border-box",
+                    padding: "9px 11px",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: 2,
+                    background: "var(--color-bg)",
+                    color: "var(--color-text)",
+                    fontSize: 13,
+                  }}
+                >
+                  {ACTIVIDAD_TIPOS.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-muted)", marginBottom: 6 }}>
+                  Fecha y hora
+                </div>
+                <input
+                  type="datetime-local"
+                  value={activityFecha}
+                  onChange={(e) => setActivityFecha(e.target.value)}
+                  style={{
+                    width: "100%",
+                    boxSizing: "border-box",
+                    padding: "9px 11px",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: 2,
+                    background: "var(--color-bg)",
+                    color: "var(--color-text)",
+                    fontSize: 13,
+                  }}
+                />
+              </div>
+
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-muted)", marginBottom: 6 }}>
+                  Descripción
+                </div>
+                <textarea
+                  value={activityDescripcion}
+                  onChange={(e) => setActivityDescripcion(e.target.value)}
+                  rows={3}
+                  style={{
+                    width: "100%",
+                    boxSizing: "border-box",
+                    padding: "9px 11px",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: 2,
+                    background: "var(--color-bg)",
+                    color: "var(--color-text)",
+                    fontSize: 13,
+                    resize: "vertical",
+                  }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
+              <button
+                onClick={() => setShowActivityModal(false)}
+                disabled={creatingActivity}
+                style={{
+                  fontSize: 13,
+                  padding: "9px 16px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 2,
+                  background: "var(--color-panel)",
+                  color: "var(--color-text)",
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={crearActividad}
+                disabled={creatingActivity}
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  padding: "9px 16px",
+                  border: "none",
+                  borderRadius: 2,
+                  background: "var(--color-red)",
+                  color: "#fff",
+                  opacity: creatingActivity ? 0.6 : 1,
+                }}
+              >
+                {creatingActivity ? "Creando…" : "Crear"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <ToastHost message={toast} />
     </>

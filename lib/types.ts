@@ -31,6 +31,7 @@ export type ConversacionRow = {
   id: string;
   estado: string;
   lead_id: string | null;
+  etapa_id: string | null;
   canal: string | null;
   contacto_nombre: string;
   contacto_correo: string | null;
@@ -43,6 +44,7 @@ export type ConversacionRow = {
   responsable_nombre: string | null;
   ultimo_mensaje: string | null;
   ultimo_mensaje_fecha: string;
+  mensajes_no_leidos: number;
 };
 
 export type AdjuntoRow = {
