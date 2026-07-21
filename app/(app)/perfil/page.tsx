@@ -38,6 +38,7 @@ const CORREO_ERROR_MESSAGES: Record<string, string> = {
   intercambio_de_token_fallido: "No fue posible completar la conexión con Google. Intente de nuevo.",
   no_fue_posible_leer_el_correo: "No fue posible confirmar la cuenta de Google. Intente de nuevo.",
   usuario_invalido: "Su sesión no es válida. Vuelva a iniciar sesión e intente de nuevo.",
+  cifrado_fallido: "Error de configuración del servidor al proteger la conexión. Contacte al administrador.",
   no_fue_posible_guardar_el_buzon: "La conexión con Google funcionó, pero no se pudo guardar. Intente de nuevo.",
 };
 

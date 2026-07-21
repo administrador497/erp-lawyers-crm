@@ -18,7 +18,21 @@ type GoogleTokenResponse = {
   refresh_token?: string;
   expires_in?: number;
   error?: string;
+  error_description?: string;
 };
+
+// LOG TEMPORAL — mismo motivo que netlify/functions/diag-env.ts: el
+// callback termina en /perfil tanto si todo salió bien como si algo falló
+// (la única señal visible es qué query param trae la redirección), así que
+// esto es lo único que deja ver, desde los logs de Netlify, en qué paso se
+// rompió. console.error (no console.log) a propósito: en el dashboard de
+// Netlify los niveles error/warn suelen destacarse o poder filtrarse aparte
+// del resto del ruido. Nunca imprime tokens/client_secret — solo
+// booleans/longitudes/mensajes de error, igual que diag-env.ts. Quitar
+// junto con diag-env.ts en cuanto se confirme el diagnóstico.
+function logStep(step: string, detail: Record<string, unknown>) {
+  console.error(`[oauth-google-callback] ${step}`, JSON.stringify(detail));
+}
 
 // GET /api/oauth-google-callback?code=...&state=...  — Google redirige aquí
 // al navegador después del consentimiento. No hay header Authorization
@@ -29,6 +43,7 @@ type GoogleTokenResponse = {
 // sesión.
 export const handler: Handler = async (event) => {
   const { code, state, error: googleError } = event.queryStringParameters ?? {};
+  logStep("inicio", { codePresente: Boolean(code), statePresente: Boolean(state), googleError: googleError ?? null });
 
   if (googleError) {
     return redirectToPerfil("correo_error=consentimiento_denegado");
@@ -38,6 +53,7 @@ export const handler: Handler = async (event) => {
   }
 
   const verified = verifyOauthState(state);
+  logStep("verificacion_state", { valido: Boolean(verified), usuarioId: verified?.usuario_id ?? null });
   if (!verified) {
     return redirectToPerfil("correo_error=estado_invalido_o_expirado");
   }
@@ -45,6 +61,11 @@ export const handler: Handler = async (event) => {
   const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
   const redirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI;
+  logStep("variables_entorno", {
+    clientIdPresente: Boolean(clientId),
+    clientSecretPresente: Boolean(clientSecret),
+    redirectUriPresente: Boolean(redirectUri),
+  });
   if (!clientId || !clientSecret || !redirectUri) {
     return redirectToPerfil("correo_error=oauth_no_configurado");
   }
@@ -62,6 +83,17 @@ export const handler: Handler = async (event) => {
   });
 
   const tokenBody = (await tokenRes.json().catch(() => ({}))) as GoogleTokenResponse;
+  logStep("intercambio_code_por_tokens", {
+    httpStatus: tokenRes.status,
+    ok: tokenRes.ok,
+    accessTokenPresente: Boolean(tokenBody.access_token),
+    refreshTokenPresente: Boolean(tokenBody.refresh_token),
+    // Estos dos SÍ vienen de Google en texto plano cuando falla (p.ej.
+    // "redirect_uri_mismatch", "invalid_client") — no son nuestro secreto,
+    // son el motivo exacto del rechazo y valen oro para diagnosticar.
+    googleError: tokenBody.error ?? null,
+    googleErrorDescription: tokenBody.error_description ?? null,
+  });
 
   if (!tokenRes.ok || !tokenBody.access_token || !tokenBody.refresh_token) {
     // Falta de refresh_token casi siempre pasa si Google ya lo había
@@ -76,17 +108,23 @@ export const handler: Handler = async (event) => {
     headers: { Authorization: `Bearer ${tokenBody.access_token}` },
   });
   const userInfo = (await userInfoRes.json().catch(() => ({}))) as { email?: string };
+  logStep("userinfo", { httpStatus: userInfoRes.status, ok: userInfoRes.ok, emailPresente: Boolean(userInfo.email) });
   if (!userInfoRes.ok || !userInfo.email) {
     return redirectToPerfil("correo_error=no_fue_posible_leer_el_correo");
   }
 
   const admin = getSupabaseAdmin();
 
-  const { data: usuario } = await admin
+  const { data: usuario, error: usuarioError } = await admin
     .from("usuarios")
     .select("id, activo")
     .eq("id", verified.usuario_id)
     .maybeSingle();
+  logStep("busqueda_usuario", {
+    encontrado: Boolean(usuario),
+    activo: usuario?.activo ?? null,
+    supabaseError: usuarioError?.message ?? null,
+  });
 
   if (!usuario || !usuario.activo) {
     return redirectToPerfil("correo_error=usuario_invalido");
@@ -95,6 +133,21 @@ export const handler: Handler = async (event) => {
   const nowIso = new Date().toISOString();
   const expiresAt = new Date(Date.now() + (tokenBody.expires_in ?? 3600) * 1000).toISOString();
 
+  let accessTokenCifrado: string;
+  let refreshTokenCifrado: string;
+  try {
+    accessTokenCifrado = encryptToken(tokenBody.access_token);
+    refreshTokenCifrado = encryptToken(tokenBody.refresh_token);
+    logStep("cifrado", { ok: true });
+  } catch (err) {
+    // encryptToken lanza si falta TOKEN_ENCRYPTION_KEY o no decodifica a 32
+    // bytes — sin este try/catch esa excepción quedaba sin capturar y
+    // rompía la función entera en vez de terminar en una redirección
+    // legible con el motivo.
+    logStep("cifrado", { ok: false, error: err instanceof Error ? err.message : String(err) });
+    return redirectToPerfil("correo_error=cifrado_fallido");
+  }
+
   const { data: buzon, error: upsertError } = await admin
     .from("buzones_correo")
     .upsert(
@@ -102,8 +155,8 @@ export const handler: Handler = async (event) => {
         usuario_id: usuario.id,
         proveedor: "google",
         correo: userInfo.email,
-        access_token_cifrado: encryptToken(tokenBody.access_token),
-        refresh_token_cifrado: encryptToken(tokenBody.refresh_token),
+        access_token_cifrado: accessTokenCifrado,
+        refresh_token_cifrado: refreshTokenCifrado,
         expires_at: expiresAt,
         conectado_en: nowIso,
         updated_at: nowIso,
@@ -112,6 +165,14 @@ export const handler: Handler = async (event) => {
     )
     .select("id")
     .single();
+  logStep("upsert_buzones_correo", {
+    ok: Boolean(buzon) && !upsertError,
+    buzonId: buzon?.id ?? null,
+    supabaseErrorCode: upsertError?.code ?? null,
+    supabaseErrorMessage: upsertError?.message ?? null,
+    supabaseErrorDetails: upsertError?.details ?? null,
+    supabaseErrorHint: upsertError?.hint ?? null,
+  });
 
   if (upsertError || !buzon) {
     return redirectToPerfil("correo_error=no_fue_posible_guardar_el_buzon");
@@ -125,5 +186,6 @@ export const handler: Handler = async (event) => {
     estado_posterior: { proveedor: "google", correo: userInfo.email },
   });
 
+  logStep("fin", { resultado: "correo_conectado" });
   return redirectToPerfil("correo_conectado=1");
 };
