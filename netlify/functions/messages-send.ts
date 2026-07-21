@@ -4,17 +4,34 @@ import { getSupabaseAdmin } from "./_shared/supabaseAdmin";
 import { loadConversacionForAccessCheck, usuarioPuedeVerConversacion } from "./_shared/conversationAccess";
 import { loadBuzonGoogle, getValidAccessToken } from "./_shared/googleMailbox";
 import { buildRawEmail, sendGmailMessage, getSentMessageHeaderId } from "./_shared/gmailApi";
+import { uploadToS3, buildStorageKey } from "./_shared/s3Client";
 
 const CANALES_VALIDOS = ["correo", "whatsapp"];
 const ASUNTO_POR_DEFECTO = "Mensaje de ERP Lawyers & Associates";
+// ~4MB decodificado, con margen bajo el límite de payload síncrono de
+// Netlify Functions/Lambda (~6MB) una vez que el JSON completo (adjuntos en
+// base64, ~33% más grandes que el binario original, más el resto del
+// cuerpo) viaja en un solo request.
+const MAX_ADJUNTOS_BYTES = 4 * 1024 * 1024;
+
+type AdjuntoInput = {
+  nombre?: string;
+  tipo_mime?: string;
+  contenido_base64?: string; // sin el prefijo "data:...;base64,"
+};
 
 type SendBody = {
   conversacion_id?: string;
   canal?: string;
   cuerpo?: string;
+  adjuntos?: AdjuntoInput[];
 };
 
-// POST /api/messages-send  { conversacion_id, canal, cuerpo }
+// POST /api/messages-send  { conversacion_id, canal, cuerpo, adjuntos? }
+// adjuntos: [{ nombre, tipo_mime, contenido_base64 }] — opcional, máximo
+// MAX_ADJUNTOS_BYTES en total. Se suben a S3 (_shared/s3Client.ts) y se
+// registran en `archivos` sin importar el canal; si el envío es Gmail real,
+// además van adjuntos de verdad en el MIME (multipart/mixed).
 //
 // Cuando canal='correo' y el remitente tiene un buzón de Gmail conectado
 // (buzones_correo) con un destinatario resoluble, envía de verdad vía la
@@ -50,6 +67,31 @@ export const handler: Handler = async (event) => {
   }
   if (!CANALES_VALIDOS.includes(canal)) {
     return jsonResponse(400, { error: `canal inválido. Use uno de: ${CANALES_VALIDOS.join(", ")}.` });
+  }
+
+  const adjuntosDecodificados: { nombre: string; tipoMime: string; buffer: Buffer }[] = [];
+  let totalAdjuntosBytes = 0;
+  for (const a of body.adjuntos ?? []) {
+    if (!a.nombre?.trim() || !a.contenido_base64) {
+      return jsonResponse(400, { error: "Cada adjunto requiere nombre y contenido_base64." });
+    }
+    let buffer: Buffer;
+    try {
+      buffer = Buffer.from(a.contenido_base64, "base64");
+    } catch {
+      return jsonResponse(400, { error: `El adjunto "${a.nombre}" no tiene contenido base64 válido.` });
+    }
+    totalAdjuntosBytes += buffer.length;
+    if (totalAdjuntosBytes > MAX_ADJUNTOS_BYTES) {
+      return jsonResponse(400, {
+        error: `Los adjuntos superan el límite de ${Math.floor(MAX_ADJUNTOS_BYTES / 1024 / 1024)}MB en total.`,
+      });
+    }
+    adjuntosDecodificados.push({
+      nombre: a.nombre.trim(),
+      tipoMime: a.tipo_mime || "application/octet-stream",
+      buffer,
+    });
   }
 
   const conversacion = await loadConversacionForAccessCheck(conversacion_id);
@@ -135,6 +177,11 @@ export const handler: Handler = async (event) => {
         body: cuerpo.trim(),
         inReplyTo: ultimoConReferencia?.referencias_hilo ?? null,
         references: ultimoConReferencia?.referencias_hilo ?? null,
+        attachments: adjuntosDecodificados.map((a) => ({
+          filename: a.nombre,
+          mimeType: a.tipoMime,
+          content: a.buffer,
+        })),
       });
 
       const envio = await sendGmailMessage(accessToken, raw, conversacion.hiloExternoId ?? undefined);
@@ -197,13 +244,59 @@ export const handler: Handler = async (event) => {
     .update({ estado: "abierta" })
     .eq("id", conversacion_id);
 
+  // Adjuntos: se suben y se guardan en `archivos` pase lo que pase con el
+  // canal (correo real por Gmail, o solo-guardado en BD) — es el mismo
+  // criterio que ya aplica al cuerpo del mensaje: siempre queda persistido
+  // en nuestro lado, la parte que varía es si además se despachó de verdad.
+  // Un fallo aquí no revierte el mensaje ya guardado (y ya enviado, si
+  // enviadoRealmente=true) — queda registrado para reconciliar a mano.
+  const archivosCreados: { id: string; nombre_original: string; tipo_mime: string | null; tamano_bytes: number | null }[] =
+    [];
+  for (const a of adjuntosDecodificados) {
+    try {
+      const key = buildStorageKey(conversacion.leadId ?? conversacion_id, a.nombre);
+      await uploadToS3(key, a.buffer, a.tipoMime);
+
+      const { data: archivo, error: archivoError } = await admin
+        .from("archivos")
+        .insert({
+          mensaje_id: mensaje.id,
+          lead_id: conversacion.leadId,
+          nombre_original: a.nombre,
+          tipo_mime: a.tipoMime,
+          tamano_bytes: a.buffer.length,
+          ruta_almacenamiento: key,
+        })
+        .select("id, nombre_original, tipo_mime, tamano_bytes")
+        .single();
+
+      if (archivoError || !archivo) {
+        throw new Error(archivoError?.message ?? "insert en archivos no devolvió fila");
+      }
+      archivosCreados.push(archivo);
+    } catch (err) {
+      console.error(`[messages-send] No fue posible subir/guardar el adjunto "${a.nombre}":`, err);
+      await admin.from("errores_integracion").insert({
+        origen: "correo",
+        payload: { conversacion_id, mensaje_id: mensaje.id, nombre: a.nombre },
+        error_detalle: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   await admin.from("auditoria").insert({
     usuario_id: auth.usuario.id,
     accion: "mensaje_saliente_creado",
     entidad: "mensajes",
     entidad_id: mensaje.id,
-    estado_posterior: { conversacion_id, canal, direccion: "saliente", enviado_realmente: enviadoRealmente },
+    estado_posterior: {
+      conversacion_id,
+      canal,
+      direccion: "saliente",
+      enviado_realmente: enviadoRealmente,
+      adjuntos: archivosCreados.length,
+    },
   });
 
-  return jsonResponse(201, { mensaje });
+  return jsonResponse(201, { mensaje, adjuntos: archivosCreados });
 };

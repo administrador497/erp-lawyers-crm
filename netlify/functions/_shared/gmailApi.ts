@@ -1,3 +1,5 @@
+import { randomBytes } from "crypto";
+
 const GMAIL_API_BASE = "https://gmail.googleapis.com/gmail/v1/users/me";
 
 // ---------------------------------------------------------------------------
@@ -62,11 +64,10 @@ export async function listGmailHistory(accessToken: string, startHistoryId: stri
 
 // ---------------------------------------------------------------------------
 // Mensaje completo — camina el árbol MIME (payload.parts anidados) para
-// sacar el cuerpo de texto y la lista de adjuntos, sin bajar los bytes de
-// los adjuntos (eso requeriría una llamada aparte a
-// users.messages.attachments.get por cada uno — ver TODO(adjuntos-s3) en
-// gmail-poll.ts, no implementado porque no hay cliente S3 en este proyecto
-// todavía).
+// sacar el cuerpo de texto y la lista de adjuntos (metadata: nombre, tipo,
+// tamaño, attachmentId). Los bytes de cada adjunto se piden aparte con
+// getGmailAttachment() más abajo — separado porque puede haber varios
+// adjuntos y no siempre hace falta bajarlos todos a la vez.
 // ---------------------------------------------------------------------------
 export type ParsedGmailMessage = {
   id: string;
@@ -166,6 +167,22 @@ export async function getGmailMessage(accessToken: string, messageId: string): P
   };
 }
 
+// Bytes de un adjunto puntual de un mensaje ya conocido (id + attachmentId
+// vienen de ParsedGmailMessage.attachments, arriba).
+export async function getGmailAttachment(
+  accessToken: string,
+  messageId: string,
+  attachmentId: string
+): Promise<Buffer | null> {
+  const res = await fetch(`${GMAIL_API_BASE}/messages/${messageId}/attachments/${attachmentId}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return null;
+  const body = (await res.json().catch(() => ({}))) as { data?: string };
+  if (!body.data) return null;
+  return Buffer.from(body.data, "base64url");
+}
+
 // "Nombre Apellido" <correo@dominio.com>  →  correo@dominio.com
 export function extractEmail(fromHeader: string | null): string | null {
   if (!fromHeader) return null;
@@ -192,6 +209,13 @@ function encodeHeaderValue(value: string): string {
   return /^[\x00-\x7F]*$/.test(value) ? value : `=?UTF-8?B?${Buffer.from(value, "utf8").toString("base64")}?=`;
 }
 
+export type EmailAttachment = { filename: string; mimeType: string; content: Buffer };
+
+function base64Lines(data: Buffer | string): string[] {
+  const base64 = Buffer.isBuffer(data) ? data.toString("base64") : Buffer.from(data, "utf8").toString("base64");
+  return base64.match(/.{1,76}/g) ?? [""]; // RFC 2045: máx 76 caracteres por línea
+}
+
 export function buildRawEmail(params: {
   from: string;
   to: string;
@@ -199,22 +223,50 @@ export function buildRawEmail(params: {
   body: string;
   inReplyTo?: string | null;
   references?: string | null;
+  attachments?: EmailAttachment[];
 }): string {
-  const bodyBase64 = Buffer.from(params.body, "utf8").toString("base64");
-  const bodyLines = bodyBase64.match(/.{1,76}/g) ?? [""]; // RFC 2045: máx 76 caracteres por línea
-
   const headerLines = [
     `From: ${params.from}`,
     `To: ${params.to}`,
     `Subject: ${encodeHeaderValue(params.subject)}`,
     `MIME-Version: 1.0`,
-    `Content-Type: text/plain; charset="UTF-8"`,
-    `Content-Transfer-Encoding: base64`,
   ];
   if (params.inReplyTo) headerLines.push(`In-Reply-To: ${params.inReplyTo}`);
   if (params.references) headerLines.push(`References: ${params.references}`);
 
-  const raw = [...headerLines, "", ...bodyLines].join("\r\n");
+  if (!params.attachments || params.attachments.length === 0) {
+    headerLines.push(`Content-Type: text/plain; charset="UTF-8"`, `Content-Transfer-Encoding: base64`);
+    const raw = [...headerLines, "", ...base64Lines(params.body)].join("\r\n");
+    return Buffer.from(raw, "utf8").toString("base64url");
+  }
+
+  // Con adjuntos: multipart/mixed — una parte de texto + una parte por
+  // adjunto, cada una en su propio bloque delimitado por boundary.
+  const boundary = `----erplawyers-${randomBytes(12).toString("hex")}`;
+  headerLines.push(`Content-Type: multipart/mixed; boundary="${boundary}"`);
+
+  const parts: string[] = [
+    `--${boundary}`,
+    `Content-Type: text/plain; charset="UTF-8"`,
+    `Content-Transfer-Encoding: base64`,
+    "",
+    ...base64Lines(params.body),
+  ];
+
+  for (const attachment of params.attachments) {
+    const filenameHeader = encodeHeaderValue(attachment.filename);
+    parts.push(
+      `--${boundary}`,
+      `Content-Type: ${attachment.mimeType || "application/octet-stream"}; name="${filenameHeader}"`,
+      `Content-Disposition: attachment; filename="${filenameHeader}"`,
+      `Content-Transfer-Encoding: base64`,
+      "",
+      ...base64Lines(attachment.content)
+    );
+  }
+  parts.push(`--${boundary}--`);
+
+  const raw = [...headerLines, "", ...parts].join("\r\n");
   return Buffer.from(raw, "utf8").toString("base64url");
 }
 

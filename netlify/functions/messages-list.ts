@@ -45,5 +45,33 @@ export const handler: Handler = async (event) => {
     return jsonResponse(500, { error: "No fue posible cargar los mensajes." });
   }
 
-  return jsonResponse(200, { mensajes: mensajes ?? [] });
+  const mensajeIds = (mensajes ?? []).map((m) => m.id);
+  const archivosPorMensaje = new Map<string, { id: string; nombre_original: string; tipo_mime: string | null; tamano_bytes: number | null }[]>();
+
+  if (mensajeIds.length > 0) {
+    const { data: archivos } = await admin
+      .from("archivos")
+      .select("id, mensaje_id, nombre_original, tipo_mime, tamano_bytes")
+      .in("mensaje_id", mensajeIds);
+
+    for (const a of archivos ?? []) {
+      const lista = archivosPorMensaje.get(a.mensaje_id) ?? [];
+      lista.push({ id: a.id, nombre_original: a.nombre_original, tipo_mime: a.tipo_mime, tamano_bytes: a.tamano_bytes });
+      archivosPorMensaje.set(a.mensaje_id, lista);
+    }
+  }
+
+  const result = (mensajes ?? []).map((m) => ({
+    id: m.id,
+    canal: m.canal,
+    direccion: m.direccion,
+    remitente: m.remitente,
+    destinatarios: m.destinatarios,
+    asunto: m.asunto,
+    cuerpo: m.cuerpo,
+    created_at: m.created_at,
+    adjuntos: archivosPorMensaje.get(m.id) ?? [],
+  }));
+
+  return jsonResponse(200, { mensajes: result });
 };

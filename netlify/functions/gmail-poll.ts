@@ -7,10 +7,12 @@ import {
   getGmailProfile,
   listGmailHistory,
   getGmailMessage,
+  getGmailAttachment,
   extractEmail,
   extractDisplayName,
   type ParsedGmailMessage,
 } from "./_shared/gmailApi";
+import { uploadToS3, buildStorageKey } from "./_shared/s3Client";
 
 type SupabaseAdmin = ReturnType<typeof getSupabaseAdmin>;
 
@@ -181,39 +183,60 @@ async function procesarMensajeEntrante(
     conversacionId = await crearConversacion(admin, leadId, contactoId, gmailMsg.threadId);
   }
 
-  const cuerpoFinal =
-    gmailMsg.attachments.length > 0
-      ? `${gmailMsg.bodyText}\n\n[Adjuntos recibidos, aún no descargados: ${gmailMsg.attachments
-          .map((a) => a.filename)
-          .join(", ")}]`
-      : // TODO(adjuntos-s3): descargar los bytes vía
-        // users.messages.attachments.get(messageId, attachmentId) y subirlos a
-        // S3 antes de crear filas en `archivos` (S3_* todavía no está
-        // configurado en este proyecto — ver SETUP.md sección 3). Mientras
-        // tanto se deja el nombre del adjunto en el cuerpo del mensaje para
-        // que no se pierda la referencia de que algo llegó adjunto.
-        gmailMsg.bodyText;
+  const { data: mensajeCreado, error: insertError } = await admin
+    .from("mensajes")
+    .insert({
+      conversacion_id: conversacionId,
+      canal: "correo",
+      direccion: "entrante",
+      remitente,
+      destinatarios: [buzon.correo],
+      asunto: gmailMsg.headers.subject,
+      cuerpo: gmailMsg.bodyText,
+      identificador_externo: gmailMsg.id,
+      referencias_hilo: gmailMsg.headers.messageId,
+    })
+    .select("id")
+    .single();
 
-  const { error: insertError } = await admin.from("mensajes").insert({
-    conversacion_id: conversacionId,
-    canal: "correo",
-    direccion: "entrante",
-    remitente,
-    destinatarios: [buzon.correo],
-    asunto: gmailMsg.headers.subject,
-    cuerpo: cuerpoFinal,
-    identificador_externo: gmailMsg.id,
-    referencias_hilo: gmailMsg.headers.messageId,
-  });
-
-  if (insertError) {
+  if (insertError || !mensajeCreado) {
     // No cuenta como procesado: sin identificador_externo guardado, el
     // chequeo de duplicados de pollBuzon no lo encontrará, así que el
     // próximo poll lo vuelve a intentar solo.
-    throw new Error(`No fue posible guardar el mensaje entrante: ${insertError.message}`);
+    throw new Error(`No fue posible guardar el mensaje entrante: ${insertError?.message}`);
   }
 
   await admin.from("conversaciones").update({ estado: "abierta" }).eq("id", conversacionId);
+
+  // Adjuntos entrantes: se bajan de Gmail y se suben a S3 uno por uno. Un
+  // adjunto que falle no descarta el mensaje ya guardado (ni a los demás
+  // adjuntos) — queda registrado en errores_integracion para revisar aparte.
+  for (const adjunto of gmailMsg.attachments) {
+    if (!adjunto.attachmentId) continue;
+    try {
+      const contenido = await getGmailAttachment(accessToken, gmailMsg.id, adjunto.attachmentId);
+      if (!contenido) {
+        throw new Error("La API de Gmail no devolvió los bytes del adjunto.");
+      }
+      const key = buildStorageKey(leadId, adjunto.filename);
+      await uploadToS3(key, contenido, adjunto.mimeType);
+      await admin.from("archivos").insert({
+        mensaje_id: mensajeCreado.id,
+        lead_id: leadId,
+        nombre_original: adjunto.filename,
+        tipo_mime: adjunto.mimeType,
+        tamano_bytes: contenido.length,
+        ruta_almacenamiento: key,
+      });
+    } catch (err) {
+      console.error(`[gmail-poll] No fue posible descargar/guardar el adjunto "${adjunto.filename}":`, err);
+      await admin.from("errores_integracion").insert({
+        origen: "correo",
+        payload: { mensaje_id: mensajeCreado.id, gmail_message_id: gmailMsg.id, nombre: adjunto.filename },
+        error_detalle: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
 
   if (esLeadNuevo) {
     await notifyBayronOfNewLead({

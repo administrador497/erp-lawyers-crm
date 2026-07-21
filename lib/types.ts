@@ -45,6 +45,13 @@ export type ConversacionRow = {
   ultimo_mensaje_fecha: string;
 };
 
+export type AdjuntoRow = {
+  id: string;
+  nombre_original: string;
+  tipo_mime: string | null;
+  tamano_bytes: number | null;
+};
+
 export type MensajeRow = {
   id: string;
   canal: string;
@@ -54,6 +61,7 @@ export type MensajeRow = {
   asunto: string | null;
   cuerpo: string;
   created_at: string;
+  adjuntos?: AdjuntoRow[];
 };
 
 export type EtapaRow = {
