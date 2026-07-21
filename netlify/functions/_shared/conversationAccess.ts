@@ -6,6 +6,7 @@ export type ConversacionAccess = {
   leadId: string | null;
   contactoId: string | null;
   responsableId: string | null;
+  hiloExternoId: string | null;
 };
 
 // Shared by messages-list.ts and messages-send.ts: resolves who owns the
@@ -19,7 +20,7 @@ export async function loadConversacionForAccessCheck(
 
   const { data, error } = await admin
     .from("conversaciones")
-    .select("id, lead_id, contacto_id, leads(responsable_id)")
+    .select("id, lead_id, contacto_id, hilo_externo_id, leads(responsable_id)")
     .eq("id", conversacionId)
     .maybeSingle();
 
@@ -32,6 +33,7 @@ export async function loadConversacionForAccessCheck(
     leadId: data.lead_id,
     contactoId: data.contacto_id,
     responsableId: (lead as { responsable_id: string | null } | null)?.responsable_id ?? null,
+    hiloExternoId: data.hilo_externo_id,
   };
 }
 

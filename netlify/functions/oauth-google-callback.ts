@@ -2,6 +2,7 @@ import type { Handler } from "@netlify/functions";
 import { getSupabaseAdmin } from "./_shared/supabaseAdmin";
 import { verifyOauthState } from "./_shared/oauthState";
 import { encryptToken } from "./_shared/tokenCrypto";
+import { getGmailProfile } from "./_shared/gmailApi";
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo";
@@ -133,6 +134,14 @@ export const handler: Handler = async (event) => {
   const nowIso = new Date().toISOString();
   const expiresAt = new Date(Date.now() + (tokenBody.expires_in ?? 3600) * 1000).toISOString();
 
+  // Línea base para gmail-poll.ts: sin esto, el primer poll no tendría
+  // desde dónde arrancar y tendría que decidir (a ciegas) si importar todo
+  // el historial del buzón como leads — nunca lo que se quiere. Si esto
+  // falla, se deja null a propósito: gmail-poll.ts sabe establecer la línea
+  // base él mismo en su primera corrida, sin procesar nada ese primer poll.
+  const profile = await getGmailProfile(tokenBody.access_token);
+  logStep("perfil_gmail_inicial", { historyIdObtenido: Boolean(profile) });
+
   let accessTokenCifrado: string;
   let refreshTokenCifrado: string;
   try {
@@ -158,6 +167,7 @@ export const handler: Handler = async (event) => {
         access_token_cifrado: accessTokenCifrado,
         refresh_token_cifrado: refreshTokenCifrado,
         expires_at: expiresAt,
+        gmail_history_id: profile?.historyId ?? null,
         conectado_en: nowIso,
         updated_at: nowIso,
       },
