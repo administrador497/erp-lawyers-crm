@@ -284,6 +284,8 @@ export const handler: Handler = async (event) => {
     }
   }
 
+  const adjuntosFallidos = adjuntosDecodificados.length - archivosCreados.length;
+
   await admin.from("auditoria").insert({
     usuario_id: auth.usuario.id,
     accion: "mensaje_saliente_creado",
@@ -295,8 +297,14 @@ export const handler: Handler = async (event) => {
       direccion: "saliente",
       enviado_realmente: enviadoRealmente,
       adjuntos: archivosCreados.length,
+      adjuntos_fallidos: adjuntosFallidos,
     },
   });
 
-  return jsonResponse(201, { mensaje, adjuntos: archivosCreados });
+  // adjuntos_fallidos>0 significa que el mensaje (y el correo real, si
+  // enviadoRealmente=true) sí se enviaron, pero uno o más adjuntos no se
+  // pudieron subir a S3/guardar en `archivos` — el detalle exacto queda en
+  // errores_integracion (origen='correo'), no en esta respuesta. Se avisa
+  // aquí para que no quede como un fallo silencioso del lado del usuario.
+  return jsonResponse(201, { mensaje, adjuntos: archivosCreados, adjuntos_fallidos: adjuntosFallidos });
 };

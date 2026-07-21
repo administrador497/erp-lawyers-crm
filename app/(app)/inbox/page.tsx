@@ -244,7 +244,18 @@ function InboxView() {
           : c
       )
     );
-    showToast("Mensaje enviado.");
+
+    if (body.adjuntos_fallidos > 0) {
+      // El mensaje (y el correo real, si aplica) sí salieron — solo uno o
+      // más adjuntos no se pudieron guardar. No se revierte nada, solo se
+      // avisa: antes esto quedaba en silencio y parecía que el adjunto
+      // simplemente no se había enviado.
+      showToast(
+        `Mensaje enviado, pero ${body.adjuntos_fallidos === 1 ? "un adjunto no se pudo guardar" : `${body.adjuntos_fallidos} adjuntos no se pudieron guardar`}. Contacte al administrador.`
+      );
+    } else {
+      showToast("Mensaje enviado.");
+    }
   };
 
   const activa = conversaciones.find((c) => c.id === selectedId) ?? null;
