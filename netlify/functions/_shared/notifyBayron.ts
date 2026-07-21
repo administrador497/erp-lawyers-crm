@@ -1,4 +1,4 @@
-// Correo transaccional (Postmark/SendGrid) para notificaciones automáticas
+// Correo transaccional (Postmark/SendGrid/Brevo) para notificaciones automáticas
 // del sistema — nunca correspondencia con clientes (eso es Gmail vía
 // buzones_correo, ver _shared/gmailApi.ts/googleMailbox.ts). Se usa para
 // avisos internos a cualquier usuario del CRM sin depender de que esa
@@ -46,6 +46,24 @@ async function sendTransactionalEmail(params: { to: string; subject: string; tex
           from: { email: from },
           subject: params.subject,
           content: [{ type: "text/plain", value: params.textBody }],
+        }),
+      });
+      return;
+    }
+
+    if (provider === "brevo") {
+      await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "api-key": apiKey,
+        },
+        body: JSON.stringify({
+          sender: { email: from },
+          to: [{ email: params.to }],
+          subject: params.subject,
+          textContent: params.textBody,
         }),
       });
       return;
