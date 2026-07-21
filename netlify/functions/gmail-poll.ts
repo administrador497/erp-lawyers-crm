@@ -175,12 +175,25 @@ async function procesarMensajeEntrante(
     leadId = conversacionExistente.lead_id;
     contactoId = conversacionExistente.contacto_id ?? contactoId;
   } else {
-    if (!contactoId) {
-      contactoId = await crearContacto(admin, remitente, gmailMsg.headers.from);
+    // Sin match por hilo de Gmail (el contacto escribió un correo nuevo en
+    // vez de responder dentro del mismo hilo) — antes de crear un lead
+    // nuevo, revisar si ese contacto ya tiene un lead no eliminado y
+    // reutilizarlo, para no duplicar leads/conversaciones cada vez que el
+    // mismo remitente escribe fuera del hilo original.
+    const leadExistente = contactoId ? await buscarLeadActivoDeContacto(admin, contactoId) : null;
+
+    if (leadExistente) {
+      leadId = leadExistente.leadId;
+      conversacionId =
+        leadExistente.conversacionId ?? (await crearConversacion(admin, leadId, contactoId, gmailMsg.threadId));
+    } else {
+      if (!contactoId) {
+        contactoId = await crearContacto(admin, remitente, gmailMsg.headers.from);
+      }
+      leadId = await crearLead(admin, contactoId, gmailMsg);
+      esLeadNuevo = true;
+      conversacionId = await crearConversacion(admin, leadId, contactoId, gmailMsg.threadId);
     }
-    leadId = await crearLead(admin, contactoId, gmailMsg);
-    esLeadNuevo = true;
-    conversacionId = await crearConversacion(admin, leadId, contactoId, gmailMsg.threadId);
   }
 
   const { data: mensajeCreado, error: insertError } = await admin
@@ -252,6 +265,37 @@ async function procesarMensajeEntrante(
 async function buscarContactoPorCorreo(admin: SupabaseAdmin, correo: string): Promise<string | null> {
   const { data } = await admin.from("contacto_correos").select("contacto_id").eq("correo", correo).maybeSingle();
   return data?.contacto_id ?? null;
+}
+
+// El lead no eliminado más reciente de ese contacto (si tiene varios) y su
+// conversación más reciente, si ya existe una — puede no existir todavía
+// (p. ej. un lead creado por leads-create.ts/forms-submit.ts, que no crean
+// conversación inicial), en cuyo caso el llamador crea solo la conversación,
+// no un lead nuevo.
+async function buscarLeadActivoDeContacto(
+  admin: SupabaseAdmin,
+  contactoId: string
+): Promise<{ leadId: string; conversacionId: string | null } | null> {
+  const { data: lead } = await admin
+    .from("leads")
+    .select("id")
+    .eq("contacto_id", contactoId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!lead) return null;
+
+  const { data: conversacion } = await admin
+    .from("conversaciones")
+    .select("id")
+    .eq("lead_id", lead.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return { leadId: lead.id, conversacionId: conversacion?.id ?? null };
 }
 
 async function crearContacto(admin: SupabaseAdmin, correo: string, fromHeaderRaw: string | null): Promise<string> {
