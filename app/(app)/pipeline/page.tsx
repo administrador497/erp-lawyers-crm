@@ -5,7 +5,7 @@ import { createClient } from "../../../lib/supabase/client";
 import { formatCurrency } from "../../../lib/format";
 import { useToast } from "../../../components/useToast";
 import ToastHost from "../../../components/ToastHost";
-import type { EtapaRow, MotivoPerdidaRow, PipelineLeadRow } from "../../../lib/types";
+import type { CurrentUsuario, EtapaRow, MotivoPerdidaRow, PipelineLeadRow } from "../../../lib/types";
 
 const ETAPA_PERDIDO = "Perdido";
 
@@ -43,24 +43,73 @@ export default function PipelinePage() {
   const [selectedMotivoId, setSelectedMotivoId] = useState("");
   const [confirmingLoss, setConfirmingLoss] = useState(false);
 
+  const [usuario, setUsuario] = useState<CurrentUsuario | null>(null);
+  const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingLeads, setDeletingLeads] = useState(false);
+
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       setError("");
-      const res = await authedFetch("/api/pipeline-list");
-      if (!res.ok) {
+      const [pipelineRes, meRes] = await Promise.all([
+        authedFetch("/api/pipeline-list"),
+        authedFetch("/api/auth-me"),
+      ]);
+      if (!pipelineRes.ok) {
         setError("No fue posible cargar el pipeline.");
         setLoading(false);
         return;
       }
-      const body = await res.json();
+      const body = await pipelineRes.json();
       setEtapas(body.etapas ?? []);
       setLeads(body.leads ?? []);
       setMotivosPerdida(body.motivosPerdida ?? []);
+
+      if (meRes.ok) {
+        const meBody = await meRes.json();
+        setUsuario(meBody.usuario ?? null);
+      }
+
       setLoading(false);
     };
     load();
   }, []);
+
+  const esAdmin = usuario?.rol === "Administrador general";
+
+  const toggleSeleccionado = (leadId: string) => {
+    setSeleccionados((prev) => {
+      const next = new Set(prev);
+      if (next.has(leadId)) {
+        next.delete(leadId);
+      } else {
+        next.add(leadId);
+      }
+      return next;
+    });
+  };
+
+  const eliminarSeleccionados = async () => {
+    setDeletingLeads(true);
+    const res = await authedFetch("/api/leads-delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lead_ids: Array.from(seleccionados) }),
+    });
+    setDeletingLeads(false);
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showToast(body.error ?? "No fue posible eliminar los leads.");
+      return;
+    }
+
+    setLeads((prev) => prev.filter((l) => !seleccionados.has(l.id)));
+    showToast(`${seleccionados.size} lead${seleccionados.size === 1 ? "" : "s"} eliminado${seleccionados.size === 1 ? "" : "s"}.`);
+    setSeleccionados(new Set());
+    setShowDeleteModal(false);
+  };
 
   const leadsByEtapa = useMemo(() => {
     const map: Record<string, PipelineLeadRow[]> = {};
@@ -158,6 +207,25 @@ export default function PipelinePage() {
         <div style={{ fontSize: 13, color: "var(--color-red)", marginBottom: 12 }}>{error}</div>
       ) : null}
 
+      {esAdmin && seleccionados.size > 0 ? (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              padding: "9px 16px",
+              border: "none",
+              borderRadius: 2,
+              background: "var(--color-red)",
+              color: "#fff",
+            }}
+          >
+            Eliminar seleccionados ({seleccionados.size})
+          </button>
+        </div>
+      ) : null}
+
       <div style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 10 }}>
         {etapas.map((etapa) => {
           const cards = leadsByEtapa[etapa.id] ?? [];
@@ -206,12 +274,26 @@ export default function PipelinePage() {
                     opacity: draggingLeadId === lead.id ? 0.5 : 1,
                   }}
                 >
-                  <div style={{ fontSize: 12.5, fontWeight: 600 }}>{lead.nombre_completo}</div>
-                  <div style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 3 }}>
-                    {lead.servicio ?? "—"}
-                  </div>
-                  <div style={{ fontSize: 11, color: "var(--color-blue)", marginTop: 5, fontWeight: 600 }}>
-                    {formatCurrency(lead.valor_potencial)}
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                    {esAdmin ? (
+                      <input
+                        type="checkbox"
+                        checked={seleccionados.has(lead.id)}
+                        onChange={() => toggleSeleccionado(lead.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        style={{ marginTop: 2, cursor: "pointer" }}
+                      />
+                    ) : null}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 600 }}>{lead.nombre_completo}</div>
+                      <div style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 3 }}>
+                        {lead.servicio ?? "—"}
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--color-blue)", marginTop: 5, fontWeight: 600 }}>
+                        {formatCurrency(lead.valor_potencial)}
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -314,6 +396,74 @@ export default function PipelinePage() {
                 }}
               >
                 {confirmingLoss ? "Confirmando…" : "Confirmar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showDeleteModal ? (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.35)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 100,
+          }}
+        >
+          <div
+            style={{
+              width: 360,
+              background: "var(--color-panel)",
+              border: "1px solid var(--color-border)",
+              borderRadius: 2,
+              padding: 24,
+              boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
+            }}
+          >
+            <h2 style={{ fontFamily: "var(--font-heading)", fontSize: 16, fontWeight: 600, marginBottom: 6 }}>
+              Eliminar leads
+            </h2>
+            <div style={{ fontSize: 12.5, color: "var(--color-muted)", marginBottom: 20 }}>
+              ¿Eliminar {seleccionados.size} lead{seleccionados.size === 1 ? "" : "s"} seleccionado
+              {seleccionados.size === 1 ? "" : "s"}? Dejará{seleccionados.size === 1 ? "" : "n"} de aparecer en
+              Pipeline, Contactos, Bandeja y Calendario. No se borra su historial y puede revertirse solo desde la
+              base de datos.
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deletingLeads}
+                style={{
+                  fontSize: 13,
+                  padding: "9px 16px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 2,
+                  background: "var(--color-panel)",
+                  color: "var(--color-text)",
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={eliminarSeleccionados}
+                disabled={deletingLeads}
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  padding: "9px 16px",
+                  border: "none",
+                  borderRadius: 2,
+                  background: "var(--color-red)",
+                  color: "#fff",
+                  opacity: deletingLeads ? 0.6 : 1,
+                }}
+              >
+                {deletingLeads ? "Eliminando…" : "Eliminar"}
               </button>
             </div>
           </div>

@@ -20,19 +20,26 @@ export async function loadConversacionForAccessCheck(
 
   const { data, error } = await admin
     .from("conversaciones")
-    .select("id, lead_id, contacto_id, hilo_externo_id, leads(responsable_id)")
+    .select("id, lead_id, contacto_id, hilo_externo_id, leads(responsable_id, deleted_at)")
     .eq("id", conversacionId)
     .maybeSingle();
 
   if (error || !data) return null;
 
   const lead = Array.isArray(data.leads) ? data.leads[0] : data.leads;
+  const leadInfo = lead as { responsable_id: string | null; deleted_at: string | null } | null;
+
+  // conversations-list.ts/activities-list.ts ya filtran por lead.deleted_at
+  // vía join, pero eso no protege un acceso directo por conversacion_id
+  // (messages-list.ts, messages-send.ts) — sin esto, un lead eliminado
+  // seguía siendo alcanzable (y respondible) por quien ya tuviera el id.
+  if (leadInfo?.deleted_at) return null;
 
   return {
     id: data.id,
     leadId: data.lead_id,
     contactoId: data.contacto_id,
-    responsableId: (lead as { responsable_id: string | null } | null)?.responsable_id ?? null,
+    responsableId: leadInfo?.responsable_id ?? null,
     hiloExternoId: data.hilo_externo_id,
   };
 }
