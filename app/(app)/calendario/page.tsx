@@ -8,7 +8,13 @@ import { useToast } from "../../../components/useToast";
 import ToastHost from "../../../components/ToastHost";
 import { useActivityActions } from "../../../components/useActivityActions";
 import ActivityActionModals from "../../../components/ActivityActionModals";
-import { TIPOS, modalInputStyle, modalLabelStyle, toDatetimeLocalValue } from "../../../components/activityShared";
+import {
+  TIPOS,
+  modalInputStyle,
+  modalLabelStyle,
+  toDatetimeLocalValue,
+  groupActividades,
+} from "../../../components/activityShared";
 import type { ActividadRow, ContactListRow } from "../../../lib/types";
 
 async function authedFetch(path: string, init: RequestInit = {}) {
@@ -122,12 +128,104 @@ export default function CalendarioPage() {
     load();
   };
 
-  const ordenadas = [...actividades].sort((a, b) => {
-    const aCompleta = a.estado === "completada" ? 1 : 0;
-    const bCompleta = b.estado === "completada" ? 1 : 0;
-    if (aCompleta !== bCompleta) return aCompleta - bCompleta;
-    return new Date(a.fecha).getTime() - new Date(b.fecha).getTime();
-  });
+  const grupos = groupActividades(actividades);
+
+  const renderActividad = (a: ActividadRow) => {
+    const completada = a.estado === "completada";
+    return (
+      <div
+        key={a.id}
+        style={{
+          display: "grid",
+          gridTemplateColumns: "120px 1fr 140px",
+          gap: 14,
+          alignItems: "center",
+          padding: "13px 20px",
+          borderBottom: "1px solid var(--color-border)",
+        }}
+      >
+        <div style={{ fontSize: 12.5, color: "var(--color-muted)" }}>{formatIngreso(a.fecha)}</div>
+        <div>
+          <div
+            style={{
+              fontSize: 13.5,
+              fontWeight: 600,
+              textDecoration: completada ? "line-through" : "none",
+            }}
+          >
+            {a.descripcion || TIPOS.find((t) => t.value === a.tipo)?.label || a.tipo}
+          </div>
+          <div style={{ fontSize: 11.5, color: "var(--color-muted)", marginTop: 2 }}>
+            {a.lead_id ? (
+              <span
+                onClick={() => router.push(`/inbox?lead=${a.lead_id}`)}
+                title="Ver conversación en Bandeja omnicanal"
+                style={{ color: "var(--color-blue)", cursor: "pointer", textDecoration: "underline" }}
+              >
+                {a.lead_nombre}
+              </span>
+            ) : (
+              a.lead_nombre
+            )}{" "}
+            · {TIPOS.find((t) => t.value === a.tipo)?.label ?? a.tipo}
+          </div>
+          {completada && (a.resultado || a.proxima_accion) ? (
+            <div style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 4 }}>
+              {a.resultado ? <div>Resultado: {a.resultado}</div> : null}
+              {a.proxima_accion ? <div>Próxima acción: {a.proxima_accion}</div> : null}
+            </div>
+          ) : null}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+          <button
+            onClick={() =>
+              completada ? activityActions.reabrirActividad(a) : activityActions.abrirCompletarActividad(a)
+            }
+            disabled={activityActions.togglingId === a.id}
+            style={{
+              fontSize: 12,
+              padding: "6px 12px",
+              border: "1px solid var(--color-border)",
+              borderRadius: 2,
+              background: completada ? "transparent" : "var(--color-red)",
+              color: completada ? "var(--color-muted)" : "#fff",
+              opacity: activityActions.togglingId === a.id ? 0.6 : 1,
+            }}
+          >
+            {completada ? "Reabrir" : "Completar"}
+          </button>
+          <button
+            onClick={() => activityActions.abrirEditarActividad(a)}
+            style={{
+              fontSize: 11.5,
+              padding: "5px 10px",
+              border: "1px solid var(--color-border)",
+              borderRadius: 2,
+              background: "var(--color-panel)",
+              color: "var(--color-text)",
+            }}
+          >
+            Editar
+          </button>
+          {completada && a.lead_id ? (
+            <button
+              onClick={() => generarSeguimiento(a)}
+              style={{
+                fontSize: 11.5,
+                padding: "5px 10px",
+                border: "1px solid var(--color-border)",
+                borderRadius: 2,
+                background: "var(--color-panel)",
+                color: "var(--color-blue)",
+              }}
+            >
+              Generar seguimiento
+            </button>
+          ) : null}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <>
@@ -152,121 +250,62 @@ export default function CalendarioPage() {
         <div style={{ fontSize: 13, color: "var(--color-red)", marginBottom: 12 }}>{error}</div>
       ) : null}
 
-      <div
-        style={{
-          background: "var(--color-panel)",
-          border: "1px solid var(--color-border)",
-          borderRadius: 2,
-          padding: "8px 0",
-        }}
-      >
-        {loading ? (
-          <div style={{ padding: "20px", fontSize: 13, color: "var(--color-muted)" }}>Cargando…</div>
-        ) : ordenadas.length === 0 ? (
-          <div style={{ padding: "20px", fontSize: 13, color: "var(--color-muted)" }}>
-            No hay actividades registradas.
-          </div>
-        ) : (
-          ordenadas.map((a) => {
-            const completada = a.estado === "completada";
-            return (
+      {loading ? (
+        <div
+          style={{
+            background: "var(--color-panel)",
+            border: "1px solid var(--color-border)",
+            borderRadius: 2,
+            padding: "20px",
+            fontSize: 13,
+            color: "var(--color-muted)",
+          }}
+        >
+          Cargando…
+        </div>
+      ) : actividades.length === 0 ? (
+        <div
+          style={{
+            background: "var(--color-panel)",
+            border: "1px solid var(--color-border)",
+            borderRadius: 2,
+            padding: "20px",
+            fontSize: 13,
+            color: "var(--color-muted)",
+          }}
+        >
+          No hay actividades registradas.
+        </div>
+      ) : (
+        grupos
+          .filter((g) => g.items.length > 0)
+          .map((g) => (
+            <div key={g.key} style={{ marginBottom: 20 }}>
               <div
-                key={a.id}
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "120px 1fr 140px",
-                  gap: 14,
-                  alignItems: "center",
-                  padding: "13px 20px",
-                  borderBottom: "1px solid var(--color-border)",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "var(--color-blue)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.03em",
+                  marginBottom: 8,
                 }}
               >
-                <div style={{ fontSize: 12.5, color: "var(--color-muted)" }}>
-                  {formatIngreso(a.fecha)}
-                </div>
-                <div>
-                  <div
-                    style={{
-                      fontSize: 13.5,
-                      fontWeight: 600,
-                      textDecoration: completada ? "line-through" : "none",
-                    }}
-                  >
-                    {a.descripcion || TIPOS.find((t) => t.value === a.tipo)?.label || a.tipo}
-                  </div>
-                  <div style={{ fontSize: 11.5, color: "var(--color-muted)", marginTop: 2 }}>
-                    {a.lead_id ? (
-                      <span
-                        onClick={() => router.push(`/inbox?lead=${a.lead_id}`)}
-                        title="Ver conversación en Bandeja omnicanal"
-                        style={{ color: "var(--color-blue)", cursor: "pointer", textDecoration: "underline" }}
-                      >
-                        {a.lead_nombre}
-                      </span>
-                    ) : (
-                      a.lead_nombre
-                    )}{" "}
-                    · {TIPOS.find((t) => t.value === a.tipo)?.label ?? a.tipo}
-                  </div>
-                  {completada && (a.resultado || a.proxima_accion) ? (
-                    <div style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 4 }}>
-                      {a.resultado ? <div>Resultado: {a.resultado}</div> : null}
-                      {a.proxima_accion ? <div>Próxima acción: {a.proxima_accion}</div> : null}
-                    </div>
-                  ) : null}
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-                  <button
-                    onClick={() =>
-                      completada ? activityActions.reabrirActividad(a) : activityActions.abrirCompletarActividad(a)
-                    }
-                    disabled={activityActions.togglingId === a.id}
-                    style={{
-                      fontSize: 12,
-                      padding: "6px 12px",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: 2,
-                      background: completada ? "transparent" : "var(--color-red)",
-                      color: completada ? "var(--color-muted)" : "#fff",
-                      opacity: activityActions.togglingId === a.id ? 0.6 : 1,
-                    }}
-                  >
-                    {completada ? "Reabrir" : "Completar"}
-                  </button>
-                  <button
-                    onClick={() => activityActions.abrirEditarActividad(a)}
-                    style={{
-                      fontSize: 11.5,
-                      padding: "5px 10px",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: 2,
-                      background: "var(--color-panel)",
-                      color: "var(--color-text)",
-                    }}
-                  >
-                    Editar
-                  </button>
-                  {completada && a.lead_id ? (
-                    <button
-                      onClick={() => generarSeguimiento(a)}
-                      style={{
-                        fontSize: 11.5,
-                        padding: "5px 10px",
-                        border: "1px solid var(--color-border)",
-                        borderRadius: 2,
-                        background: "var(--color-panel)",
-                        color: "var(--color-blue)",
-                      }}
-                    >
-                      Generar seguimiento
-                    </button>
-                  ) : null}
-                </div>
+                {g.label}
               </div>
-            );
-          })
-        )}
-      </div>
+              <div
+                style={{
+                  background: "var(--color-panel)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 2,
+                  padding: "8px 0",
+                }}
+              >
+                {g.items.map(renderActividad)}
+              </div>
+            </div>
+          ))
+      )}
 
       {showModal ? (
         <div

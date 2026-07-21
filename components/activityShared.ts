@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import type { ActividadRow } from "../lib/types";
 
 export const TIPOS = [
   { value: "llamada", label: "Llamada" },
@@ -35,6 +36,52 @@ export const modalLabelStyle: CSSProperties = {
   color: "var(--color-muted)",
   marginBottom: 6,
 };
+
+export type ActividadGroup = {
+  key: "atrasadas" | "hoy" | "pendientes" | "finalizadas";
+  label: string;
+  items: ActividadRow[];
+};
+
+// Mismo agrupado en las 4 vistas donde aparecen actividades (/calendario y
+// LeadActivitiesList) — un solo lugar para el criterio de "hoy" (día
+// calendario local, no 24h desde ahora) y el orden de los grupos.
+export function groupActividades(actividades: ActividadRow[]): ActividadGroup[] {
+  const ahora = new Date();
+  const inicioHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate()).getTime();
+  const inicioManana = inicioHoy + 24 * 60 * 60 * 1000;
+
+  const atrasadas: ActividadRow[] = [];
+  const hoy: ActividadRow[] = [];
+  const pendientes: ActividadRow[] = [];
+  const finalizadas: ActividadRow[] = [];
+
+  for (const a of actividades) {
+    if (a.estado === "completada") {
+      finalizadas.push(a);
+      continue;
+    }
+    const fechaMs = new Date(a.fecha).getTime();
+    if (fechaMs < inicioHoy) atrasadas.push(a);
+    else if (fechaMs < inicioManana) hoy.push(a);
+    else pendientes.push(a);
+  }
+
+  const porFechaAsc = (a: ActividadRow, b: ActividadRow) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime();
+  const porFechaDesc = (a: ActividadRow, b: ActividadRow) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime();
+
+  atrasadas.sort(porFechaAsc);
+  hoy.sort(porFechaAsc);
+  pendientes.sort(porFechaAsc);
+  finalizadas.sort(porFechaDesc);
+
+  return [
+    { key: "atrasadas", label: "Actividades Atrasadas", items: atrasadas },
+    { key: "hoy", label: "Actividades Hoy", items: hoy },
+    { key: "pendientes", label: "Actividades Pendientes", items: pendientes },
+    { key: "finalizadas", label: "Actividades Finalizadas", items: finalizadas },
+  ];
+}
 
 export const modalCancelButtonStyle: CSSProperties = {
   fontSize: 13,

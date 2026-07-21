@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "../lib/supabase/client";
 import { formatIngreso } from "../lib/format";
 import type { ActividadRow } from "../lib/types";
-import { TIPO_LABEL } from "./activityShared";
+import { TIPO_LABEL, groupActividades } from "./activityShared";
 import { useActivityActions } from "./useActivityActions";
 import ActivityActionModals from "./ActivityActionModals";
 
@@ -76,12 +76,7 @@ export default function LeadActivitiesList({
     );
   }
 
-  const ahora = Date.now();
-  const esProxima = (a: ActividadRow) => a.estado !== "completada" && new Date(a.fecha).getTime() >= ahora;
-  const proximas = actividades.filter(esProxima);
-  const anteriores = [...actividades.filter((a) => !esProxima(a))].sort(
-    (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
-  );
+  const grupos = groupActividades(actividades);
 
   const renderRow = (a: ActividadRow) => {
     const completada = a.estado === "completada";
@@ -139,43 +134,25 @@ export default function LeadActivitiesList({
 
   return (
     <div>
-      {proximas.length > 0 ? (
-        <div style={{ marginBottom: 14 }}>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              color: "var(--color-blue)",
-              textTransform: "uppercase",
-              letterSpacing: "0.03em",
-              marginBottom: 6,
-            }}
-          >
-            Próximas
+      {grupos
+        .filter((g) => g.items.length > 0)
+        .map((g) => (
+          <div key={g.key} style={{ marginBottom: 14 }}>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: "var(--color-blue)",
+                textTransform: "uppercase",
+                letterSpacing: "0.03em",
+                marginBottom: 6,
+              }}
+            >
+              {g.label}
+            </div>
+            {g.items.map(renderRow)}
           </div>
-          {proximas.map(renderRow)}
-        </div>
-      ) : null}
-
-      <div>
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            color: "var(--color-blue)",
-            textTransform: "uppercase",
-            letterSpacing: "0.03em",
-            marginBottom: 6,
-          }}
-        >
-          {proximas.length > 0 ? "Anteriores" : "Actividades"}
-        </div>
-        {anteriores.length > 0 ? (
-          anteriores.map(renderRow)
-        ) : (
-          <div style={{ fontSize: 12.5, color: "var(--color-muted)" }}>Sin actividades anteriores.</div>
-        )}
-      </div>
+        ))}
 
       <ActivityActionModals actions={activityActions} />
     </div>
