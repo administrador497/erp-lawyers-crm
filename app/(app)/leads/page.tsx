@@ -17,6 +17,9 @@ export default function LeadsInboxPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [assigningId, setAssigningId] = useState<string | null>(null);
+  const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingLeads, setDeletingLeads] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -93,6 +96,57 @@ export default function LeadsInboxPage() {
     showToast(`Lead asignado a ${body.responsable_nombre}.`);
   };
 
+  const toggleSeleccionado = (leadId: string) => {
+    setSeleccionados((prev) => {
+      const next = new Set(prev);
+      if (next.has(leadId)) {
+        next.delete(leadId);
+      } else {
+        next.add(leadId);
+      }
+      return next;
+    });
+  };
+
+  // Mismo endpoint que /pipeline (netlify/functions/leads-delete.ts) — sin
+  // lógica nueva del lado del servidor, solo el mismo POST desde otra
+  // pantalla.
+  const eliminarSeleccionados = async () => {
+    setDeletingLeads(true);
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    const res = await fetch("/api/leads-delete", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session?.access_token ?? ""}`,
+      },
+      body: JSON.stringify({ lead_ids: Array.from(seleccionados) }),
+    });
+
+    setDeletingLeads(false);
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showToast(body.error ?? "No fue posible eliminar los leads.");
+      return;
+    }
+
+    setLeads((prev) => prev.filter((l) => !seleccionados.has(l.id)));
+    showToast(
+      `${seleccionados.size} lead${seleccionados.size === 1 ? "" : "s"} eliminado${seleccionados.size === 1 ? "" : "s"}.`
+    );
+    setSeleccionados(new Set());
+    setShowDeleteModal(false);
+  };
+
+  const gridColumns = isAdmin
+    ? "28px 1.4fr 1fr 1fr 1fr 0.8fr 1.3fr"
+    : "1.4fr 1fr 1fr 1fr 0.8fr 1.3fr";
+
   return (
     <>
       <div style={{ fontSize: 13, color: "var(--color-muted)", marginBottom: 16 }}>
@@ -102,6 +156,25 @@ export default function LeadsInboxPage() {
 
       {error ? (
         <div style={{ fontSize: 13, color: "var(--color-red)", marginBottom: 12 }}>{error}</div>
+      ) : null}
+
+      {isAdmin && seleccionados.size > 0 ? (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              padding: "9px 16px",
+              border: "none",
+              borderRadius: 2,
+              background: "var(--color-red)",
+              color: "#fff",
+            }}
+          >
+            Eliminar seleccionados ({seleccionados.size})
+          </button>
+        </div>
       ) : null}
 
       <div
@@ -115,7 +188,7 @@ export default function LeadsInboxPage() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1.4fr 1fr 1fr 1fr 0.8fr 1.3fr",
+            gridTemplateColumns: gridColumns,
             gap: 8,
             padding: "12px 16px",
             fontSize: 11.5,
@@ -126,6 +199,7 @@ export default function LeadsInboxPage() {
             background: "var(--color-panel-2)",
           }}
         >
+          {isAdmin ? <div /> : null}
           <div>Contacto</div>
           <div>Canal / Origen</div>
           <div>Servicio</div>
@@ -150,13 +224,21 @@ export default function LeadsInboxPage() {
                 key={lead.id}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1.4fr 1fr 1fr 1fr 0.8fr 1.3fr",
+                  gridTemplateColumns: gridColumns,
                   gap: 8,
                   padding: "14px 16px",
                   borderTop: "1px solid var(--color-border)",
                   alignItems: "center",
                 }}
               >
+                {isAdmin ? (
+                  <input
+                    type="checkbox"
+                    checked={seleccionados.has(lead.id)}
+                    onChange={() => toggleSeleccionado(lead.id)}
+                    style={{ cursor: "pointer" }}
+                  />
+                ) : null}
                 <div>
                   <div style={{ fontSize: 13.5, fontWeight: 600 }}>{lead.nombre_completo}</div>
                   <div style={{ fontSize: 11.5, color: "var(--color-muted)" }}>
@@ -224,6 +306,74 @@ export default function LeadsInboxPage() {
           })
         )}
       </div>
+
+      {showDeleteModal ? (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.35)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 100,
+          }}
+        >
+          <div
+            style={{
+              width: 360,
+              background: "var(--color-panel)",
+              border: "1px solid var(--color-border)",
+              borderRadius: 2,
+              padding: 24,
+              boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
+            }}
+          >
+            <h2 style={{ fontFamily: "var(--font-heading)", fontSize: 16, fontWeight: 600, marginBottom: 6 }}>
+              Eliminar leads
+            </h2>
+            <div style={{ fontSize: 12.5, color: "var(--color-muted)", marginBottom: 20 }}>
+              ¿Eliminar {seleccionados.size} lead{seleccionados.size === 1 ? "" : "s"} seleccionado
+              {seleccionados.size === 1 ? "" : "s"}? Dejará{seleccionados.size === 1 ? "" : "n"} de aparecer en
+              Pipeline, Contactos, Bandeja y Calendario. No se borra su historial y puede revertirse solo desde la
+              base de datos.
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deletingLeads}
+                style={{
+                  fontSize: 13,
+                  padding: "9px 16px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 2,
+                  background: "var(--color-panel)",
+                  color: "var(--color-text)",
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={eliminarSeleccionados}
+                disabled={deletingLeads}
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  padding: "9px 16px",
+                  border: "none",
+                  borderRadius: 2,
+                  background: "var(--color-red)",
+                  color: "#fff",
+                  opacity: deletingLeads ? 0.6 : 1,
+                }}
+              >
+                {deletingLeads ? "Eliminando…" : "Eliminar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <ToastHost message={toast} />
     </>
