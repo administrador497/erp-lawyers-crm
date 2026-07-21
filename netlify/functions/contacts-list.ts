@@ -44,5 +44,10 @@ export const handler: Handler = async (event) => {
     prioridad: l.prioridad,
   }));
 
-  return jsonResponse(200, { contactos });
+  // Catálogo para el modal "+ Nuevo contacto" — se manda junto con la lista
+  // porque la página ya la pide al cargar, igual que users-list.ts manda
+  // roles/equipos junto con su propia lista principal.
+  const { data: servicios } = await admin.from("servicios").select("id, nombre").order("nombre");
+
+  return jsonResponse(200, { contactos, servicios: servicios ?? [] });
 };

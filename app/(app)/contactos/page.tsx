@@ -5,7 +5,7 @@ import { createClient } from "../../../lib/supabase/client";
 import { formatCurrency, formatIngreso, priorityStyle } from "../../../lib/format";
 import { useToast } from "../../../components/useToast";
 import ToastHost from "../../../components/ToastHost";
-import type { ContactDetail, ContactListRow, HistorialItem } from "../../../lib/types";
+import type { ContactDetail, ContactListRow, HistorialItem, ServicioRow } from "../../../lib/types";
 
 async function authedFetch(path: string, init: RequestInit = {}) {
   const supabase = createClient();
@@ -65,9 +65,69 @@ const inputStyle: React.CSSProperties = {
   fontSize: 13,
 };
 
+const overlayStyle: React.CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(0,0,0,0.35)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 100,
+};
+
+const modalCardStyle: React.CSSProperties = {
+  width: 460,
+  background: "var(--color-panel)",
+  border: "1px solid var(--color-border)",
+  borderRadius: 2,
+  padding: 24,
+  boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
+};
+
+const modalLabelStyle: React.CSSProperties = {
+  fontSize: 12,
+  fontWeight: 600,
+  color: "var(--color-muted)",
+  marginBottom: 6,
+};
+
+const modalInputStyle: React.CSSProperties = {
+  width: "100%",
+  boxSizing: "border-box",
+  padding: "9px 11px",
+  border: "1px solid var(--color-border)",
+  borderRadius: 2,
+  background: "var(--color-bg)",
+  color: "var(--color-text)",
+  fontSize: 13,
+};
+
+type NuevoContactoForm = {
+  nombre: string;
+  primer_apellido: string;
+  segundo_apellido: string;
+  correo: string;
+  telefono: string;
+  pais: string;
+  empresa_nombre: string;
+  servicio_id: string;
+};
+
+const FORM_VACIO: NuevoContactoForm = {
+  nombre: "",
+  primer_apellido: "",
+  segundo_apellido: "",
+  correo: "",
+  telefono: "",
+  pais: "",
+  empresa_nombre: "",
+  servicio_id: "",
+};
+
 export default function ContactosPage() {
   const { toast, showToast } = useToast();
   const [contactos, setContactos] = useState<ContactListRow[]>([]);
+  const [servicios, setServicios] = useState<ServicioRow[]>([]);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ContactDetail | null>(null);
   const [historial, setHistorial] = useState<HistorialItem[]>([]);
@@ -79,23 +139,68 @@ export default function ContactosPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const load = async () => {
-      setLoadingList(true);
-      const res = await authedFetch("/api/contacts-list");
-      if (!res.ok) {
-        setError("No fue posible cargar los contactos.");
-        setLoadingList(false);
-        return;
-      }
-      const body = await res.json();
-      const lista: ContactListRow[] = body.contactos ?? [];
-      setContactos(lista);
-      setSelectedLeadId(lista[0]?.id ?? null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createForm, setCreateForm] = useState<NuevoContactoForm>(FORM_VACIO);
+  const [creating, setCreating] = useState(false);
+
+  const loadContactos = async (selectLeadId?: string) => {
+    setLoadingList(true);
+    const res = await authedFetch("/api/contacts-list");
+    if (!res.ok) {
+      setError("No fue posible cargar los contactos.");
       setLoadingList(false);
-    };
-    load();
+      return;
+    }
+    const body = await res.json();
+    const lista: ContactListRow[] = body.contactos ?? [];
+    setContactos(lista);
+    setServicios(body.servicios ?? []);
+    setSelectedLeadId(selectLeadId ?? lista[0]?.id ?? null);
+    setLoadingList(false);
+  };
+
+  useEffect(() => {
+    loadContactos();
   }, []);
+
+  const openCreateModal = () => {
+    setCreateForm(FORM_VACIO);
+    setShowCreateModal(true);
+  };
+
+  const submitCreate = async () => {
+    if (!createForm.nombre.trim()) {
+      showToast("El nombre es obligatorio.");
+      return;
+    }
+    setCreating(true);
+    const res = await authedFetch("/api/contact-create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nombre: createForm.nombre.trim(),
+        primer_apellido: createForm.primer_apellido.trim() || undefined,
+        segundo_apellido: createForm.segundo_apellido.trim() || undefined,
+        correo: createForm.correo.trim() || undefined,
+        telefono_e164: createForm.telefono.trim() || undefined,
+        pais: createForm.pais.trim() || undefined,
+        empresa_nombre: createForm.empresa_nombre.trim() || undefined,
+        servicio_id: createForm.servicio_id || undefined,
+      }),
+    });
+    setCreating(false);
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showToast(body.error ?? "No fue posible crear el contacto.");
+      return;
+    }
+
+    const body = await res.json();
+    setShowCreateModal(false);
+    showToast("Contacto creado y asignado a Bayron.");
+    await loadContactos(body.lead_id);
+  };
 
   useEffect(() => {
     if (!selectedLeadId) {
@@ -201,7 +306,25 @@ export default function ContactosPage() {
   };
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 20 }}>
+    <>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
+        <button
+          onClick={openCreateModal}
+          style={{
+            fontSize: 13,
+            fontWeight: 600,
+            padding: "9px 16px",
+            border: "none",
+            borderRadius: 2,
+            background: "var(--color-red)",
+            color: "#fff",
+          }}
+        >
+          + Nuevo contacto
+        </button>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 20 }}>
       <div
         style={{
           background: "var(--color-panel)",
@@ -555,8 +678,133 @@ export default function ContactosPage() {
           </>
         )}
       </div>
+      </div>
+
+      {showCreateModal ? (
+        <div style={overlayStyle}>
+          <div style={modalCardStyle}>
+            <h2 style={{ fontFamily: "var(--font-heading)", fontSize: 16, fontWeight: 600, marginBottom: 16 }}>
+              Nuevo contacto
+            </h2>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+              <div style={{ gridColumn: "span 3" }}>
+                <div style={modalLabelStyle}>Nombre</div>
+                <input
+                  value={createForm.nombre}
+                  onChange={(e) => setCreateForm({ ...createForm, nombre: e.target.value })}
+                  style={modalInputStyle}
+                />
+              </div>
+              <div>
+                <div style={modalLabelStyle}>Primer apellido</div>
+                <input
+                  value={createForm.primer_apellido}
+                  onChange={(e) => setCreateForm({ ...createForm, primer_apellido: e.target.value })}
+                  style={modalInputStyle}
+                />
+              </div>
+              <div style={{ gridColumn: "span 2" }}>
+                <div style={modalLabelStyle}>Segundo apellido</div>
+                <input
+                  value={createForm.segundo_apellido}
+                  onChange={(e) => setCreateForm({ ...createForm, segundo_apellido: e.target.value })}
+                  style={modalInputStyle}
+                />
+              </div>
+
+              <div style={{ gridColumn: "span 3" }}>
+                <div style={modalLabelStyle}>Correo electrónico</div>
+                <input
+                  type="email"
+                  value={createForm.correo}
+                  onChange={(e) => setCreateForm({ ...createForm, correo: e.target.value })}
+                  placeholder="nombre@dominio.com"
+                  style={modalInputStyle}
+                />
+              </div>
+
+              <div style={{ gridColumn: "span 3" }}>
+                <div style={modalLabelStyle}>Teléfono (formato E.164)</div>
+                <input
+                  value={createForm.telefono}
+                  onChange={(e) => setCreateForm({ ...createForm, telefono: e.target.value })}
+                  placeholder="+50688000000"
+                  style={modalInputStyle}
+                />
+              </div>
+
+              <div>
+                <div style={modalLabelStyle}>País</div>
+                <input
+                  value={createForm.pais}
+                  onChange={(e) => setCreateForm({ ...createForm, pais: e.target.value })}
+                  style={modalInputStyle}
+                />
+              </div>
+              <div style={{ gridColumn: "span 2" }}>
+                <div style={modalLabelStyle}>Empresa (opcional)</div>
+                <input
+                  value={createForm.empresa_nombre}
+                  onChange={(e) => setCreateForm({ ...createForm, empresa_nombre: e.target.value })}
+                  style={modalInputStyle}
+                />
+              </div>
+
+              <div style={{ gridColumn: "span 3" }}>
+                <div style={modalLabelStyle}>Servicio de interés</div>
+                <select
+                  value={createForm.servicio_id}
+                  onChange={(e) => setCreateForm({ ...createForm, servicio_id: e.target.value })}
+                  style={modalInputStyle}
+                >
+                  <option value="">Sin especificar</option>
+                  {servicios.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                disabled={creating}
+                style={{
+                  fontSize: 13,
+                  padding: "9px 16px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 2,
+                  background: "var(--color-panel)",
+                  color: "var(--color-text)",
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={submitCreate}
+                disabled={creating}
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  padding: "9px 16px",
+                  border: "none",
+                  borderRadius: 2,
+                  background: "var(--color-red)",
+                  color: "#fff",
+                  opacity: creating ? 0.6 : 1,
+                }}
+              >
+                {creating ? "Creando…" : "Crear contacto"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <ToastHost message={toast} />
-    </div>
+    </>
   );
 }

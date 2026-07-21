@@ -85,6 +85,11 @@ export type ContactListRow = {
   prioridad: string;
 };
 
+export type ServicioRow = {
+  id: string;
+  nombre: string;
+};
+
 export type ContactDetail = {
   lead_id: string;
   contacto_id: string;
