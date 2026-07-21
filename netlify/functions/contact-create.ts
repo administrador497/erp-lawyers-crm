@@ -3,6 +3,7 @@ import { jsonResponse, requireUser } from "./_shared/auth";
 import { getSupabaseAdmin } from "./_shared/supabaseAdmin";
 import { buscarOCrearContacto, buscarOCrearEmpresa } from "./_shared/contacto";
 import { notifyBayronOfNewLead } from "./_shared/notifyBayron";
+import { loadBuzonGoogle } from "./_shared/googleMailbox";
 
 const E164_REGEX = /^\+[1-9]\d{7,14}$/;
 
@@ -109,6 +110,56 @@ export const handler: Handler = async (event) => {
     contactoNombre: nombre,
     canalOrigen: "manual",
   });
+
+  // Conversación inicial — sin esto el lead nunca aparece en la Bandeja
+  // omnicanal: conversations-list.ts lista conversaciones, no leads. Ni
+  // leads-create.ts ni forms-submit.ts tienen este paso tampoco (mismo
+  // hueco ahí, sin tocar esos dos archivos ya en producción porque no fue
+  // lo que se pidió). channel 'correo': si quien crea el contacto tiene un
+  // buzón de Gmail conectado, la conversación queda ligada a ese canal
+  // (reutiliza la fila de `canales` si ya existe una con ese identificador,
+  // en vez de crear una nueva cada vez); si no, queda sin canal_id — la UI
+  // ya sabe mostrar el canal_origen del lead como respaldo en ese caso
+  // (ver conversations-list.ts). Sin hilo_externo_id todavía: se completa
+  // solo la primera vez que alguien responda por Gmail desde /inbox (ver
+  // messages-send.ts).
+  let canalId: string | null = null;
+  const buzon = await loadBuzonGoogle(auth.usuario.id);
+  if (buzon) {
+    const { data: canalExistente } = await admin
+      .from("canales")
+      .select("id")
+      .eq("tipo", "correo")
+      .eq("identificador", buzon.correo)
+      .maybeSingle();
+
+    if (canalExistente) {
+      canalId = canalExistente.id;
+    } else {
+      const { data: nuevoCanal } = await admin
+        .from("canales")
+        .insert({ tipo: "correo", identificador: buzon.correo })
+        .select("id")
+        .single();
+      canalId = nuevoCanal?.id ?? null;
+    }
+  }
+
+  const { error: conversacionError } = await admin.from("conversaciones").insert({
+    lead_id: lead.id,
+    contacto_id: contactoResult.contactoId,
+    canal_id: canalId,
+    estado: "abierta",
+  });
+
+  if (conversacionError) {
+    // No revierte el contacto/lead ya creados — el lead sigue siendo válido
+    // y visible en Contactos/Pipeline; solo queda sin conversación inicial,
+    // recuperable a mano si hace falta. No tiene sentido devolver un error
+    // 500 por esto cuando la parte que sí importa (contacto + lead +
+    // asignación a Bayron) ya se completó.
+    console.error("[contact-create] No fue posible crear la conversación inicial:", conversacionError.message);
+  }
 
   return jsonResponse(201, { ok: true, lead_id: lead.id, contacto_id: contactoResult.contactoId });
 };
