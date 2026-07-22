@@ -6,6 +6,7 @@ import { formatCurrency } from "../../../lib/format";
 import { useToast } from "../../../components/useToast";
 import ToastHost from "../../../components/ToastHost";
 import LeadActivitiesList from "../../../components/LeadActivitiesList";
+import { radius, badgeStyle, inputStyle, buttonPrimaryStyle, buttonSecondaryStyle } from "../../../components/uiTokens";
 import type { CurrentUsuario, EtapaRow, MotivoPerdidaRow, PipelineLeadRow } from "../../../lib/types";
 
 const ETAPA_PERDIDO = "Perdido";
@@ -319,18 +320,7 @@ export default function PipelinePage() {
             Seleccionar todos
           </label>
           {seleccionados.size > 0 ? (
-            <button
-              onClick={() => setShowDeleteModal(true)}
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                padding: "9px 16px",
-                border: "none",
-                borderRadius: 2,
-                background: "var(--color-red)",
-                color: "#fff",
-              }}
-            >
+            <button onClick={() => setShowDeleteModal(true)} style={buttonPrimaryStyle}>
               Eliminar seleccionados ({seleccionados.size})
             </button>
           ) : null}
@@ -348,94 +338,109 @@ export default function PipelinePage() {
               style={{
                 minWidth: 230,
                 background: "var(--color-panel-2)",
-                borderRadius: 2,
+                borderRadius: radius.md,
                 padding: 12,
                 flexShrink: 0,
               }}
             >
               <div
                 style={{
-                  fontSize: 12.5,
-                  fontWeight: 700,
                   marginBottom: 10,
                   display: "flex",
+                  alignItems: "center",
                   justifyContent: "space-between",
                 }}
               >
-                <span style={{ color: "var(--color-blue)" }}>{etapa.nombre}</span>
-                <span style={{ color: "var(--color-muted)" }}>{cards.length}</span>
-              </div>
-
-              {cards.map((lead) => (
-                <div
-                  key={lead.id}
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData("text/plain", lead.id);
-                    setDraggingLeadId(lead.id);
-                  }}
-                  onDragEnd={() => setDraggingLeadId(null)}
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--color-blue)" }}>{etapa.nombre}</span>
+                <span
                   style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: "2px 9px",
+                    borderRadius: radius.pill,
                     background: "var(--color-panel)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 2,
-                    padding: 11,
-                    marginBottom: 8,
-                    cursor: "grab",
-                    opacity: draggingLeadId === lead.id ? 0.5 : 1,
+                    color: "var(--color-blue)",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                    {esAdmin ? (
-                      <input
-                        type="checkbox"
-                        checked={seleccionados.has(lead.id)}
-                        onChange={() => toggleSeleccionado(lead.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        style={{ marginTop: 2, cursor: "pointer" }}
-                      />
-                    ) : null}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <div style={{ fontSize: 12.5, fontWeight: 600 }}>{lead.nombre_completo}</div>
-                        {nuevosIds.has(lead.id) ? (
-                          <span
+                  {cards.length}
+                </span>
+              </div>
+
+              {cards.map((lead) => {
+                const acento = etapa.nombre === ETAPA_PERDIDO ? "var(--color-red)" : "var(--color-blue)";
+                return (
+                  <div
+                    key={lead.id}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData("text/plain", lead.id);
+                      setDraggingLeadId(lead.id);
+                    }}
+                    onDragEnd={() => setDraggingLeadId(null)}
+                    style={{
+                      background: "var(--color-panel)",
+                      border: "1px solid var(--color-border)",
+                      borderLeft: `3px solid ${acento}`,
+                      borderRadius: radius.md,
+                      padding: "10px 11px",
+                      marginBottom: 8,
+                      cursor: "grab",
+                      opacity: draggingLeadId === lead.id ? 0.5 : 1,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                      {esAdmin ? (
+                        <input
+                          type="checkbox"
+                          checked={seleccionados.has(lead.id)}
+                          onChange={() => toggleSeleccionado(lead.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          style={{ marginTop: 2, cursor: "pointer" }}
+                        />
+                      ) : null}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div
                             style={{
-                              fontSize: 9.5,
-                              fontWeight: 700,
-                              padding: "1px 6px",
-                              borderRadius: 10,
-                              background: "var(--color-red)",
-                              color: "#fff",
-                              textTransform: "uppercase",
-                              letterSpacing: "0.02em",
+                              fontSize: 12.5,
+                              fontWeight: 600,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
                             }}
                           >
-                            Nuevo
+                            {lead.nombre_completo}
+                          </div>
+                          {nuevosIds.has(lead.id) ? <span style={badgeStyle("alert")}>Nuevo</span> : null}
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                          <span style={badgeStyle("muted")}>{lead.servicio ?? "Sin servicio"}</span>
+                          <span style={{ fontSize: 11, color: "var(--color-blue)", fontWeight: 700 }}>
+                            {formatCurrency(lead.valor_potencial)}
                           </span>
-                        ) : null}
-                      </div>
-                      <div style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 3 }}>
-                        {lead.servicio ?? "—"}
-                      </div>
-                      <div style={{ fontSize: 11, color: "var(--color-blue)", marginTop: 5, fontWeight: 600 }}>
-                        {formatCurrency(lead.valor_potencial)}
-                      </div>
-                      <div
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setVerActividadesLead(lead);
-                        }}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        style={{ fontSize: 10.5, color: "var(--color-muted)", marginTop: 6, cursor: "pointer", textDecoration: "underline" }}
-                      >
-                        Actividades
+                        </div>
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setVerActividadesLead(lead);
+                          }}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          style={{
+                            fontSize: 10.5,
+                            color: "var(--color-muted)",
+                            marginTop: 6,
+                            cursor: "pointer",
+                            textDecoration: "underline",
+                          }}
+                        >
+                          Actividades
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           );
         })}
@@ -458,7 +463,7 @@ export default function PipelinePage() {
               width: 340,
               background: "var(--color-panel)",
               border: "1px solid var(--color-border)",
-              borderRadius: 2,
+              borderRadius: radius.lg,
               padding: 24,
               boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
             }}
@@ -485,17 +490,7 @@ export default function PipelinePage() {
               <select
                 value={selectedMotivoId}
                 onChange={(e) => setSelectedMotivoId(e.target.value)}
-                style={{
-                  width: "100%",
-                  boxSizing: "border-box",
-                  padding: "9px 11px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 2,
-                  background: "var(--color-bg)",
-                  color: "var(--color-text)",
-                  fontSize: 13,
-                  marginBottom: 20,
-                }}
+                style={{ ...inputStyle, marginBottom: 20 }}
               >
                 {motivosPerdida.map((m) => (
                   <option key={m.id} value={m.id}>
@@ -506,33 +501,13 @@ export default function PipelinePage() {
             )}
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-              <button
-                onClick={cancelLossPrompt}
-                disabled={confirmingLoss}
-                style={{
-                  fontSize: 13,
-                  padding: "9px 16px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 2,
-                  background: "var(--color-panel)",
-                  color: "var(--color-text)",
-                }}
-              >
+              <button onClick={cancelLossPrompt} disabled={confirmingLoss} style={buttonSecondaryStyle}>
                 Cancelar
               </button>
               <button
                 onClick={confirmLossPrompt}
                 disabled={confirmingLoss || !selectedMotivoId}
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  padding: "9px 16px",
-                  border: "none",
-                  borderRadius: 2,
-                  background: "var(--color-red)",
-                  color: "#fff",
-                  opacity: confirmingLoss || !selectedMotivoId ? 0.6 : 1,
-                }}
+                style={{ ...buttonPrimaryStyle, opacity: confirmingLoss || !selectedMotivoId ? 0.6 : 1 }}
               >
                 {confirmingLoss ? "Confirmando…" : "Confirmar"}
               </button>
@@ -558,7 +533,7 @@ export default function PipelinePage() {
               width: 360,
               background: "var(--color-panel)",
               border: "1px solid var(--color-border)",
-              borderRadius: 2,
+              borderRadius: radius.lg,
               padding: 24,
               boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
             }}
@@ -574,33 +549,13 @@ export default function PipelinePage() {
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-              <button
-                onClick={() => setShowDeleteModal(false)}
-                disabled={deletingLeads}
-                style={{
-                  fontSize: 13,
-                  padding: "9px 16px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 2,
-                  background: "var(--color-panel)",
-                  color: "var(--color-text)",
-                }}
-              >
+              <button onClick={() => setShowDeleteModal(false)} disabled={deletingLeads} style={buttonSecondaryStyle}>
                 Cancelar
               </button>
               <button
                 onClick={eliminarSeleccionados}
                 disabled={deletingLeads}
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  padding: "9px 16px",
-                  border: "none",
-                  borderRadius: 2,
-                  background: "var(--color-red)",
-                  color: "#fff",
-                  opacity: deletingLeads ? 0.6 : 1,
-                }}
+                style={{ ...buttonPrimaryStyle, opacity: deletingLeads ? 0.6 : 1 }}
               >
                 {deletingLeads ? "Eliminando…" : "Eliminar"}
               </button>
@@ -630,7 +585,7 @@ export default function PipelinePage() {
               overflow: "auto",
               background: "var(--color-panel)",
               border: "1px solid var(--color-border)",
-              borderRadius: 2,
+              borderRadius: radius.lg,
               padding: 24,
               boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
             }}
@@ -640,17 +595,7 @@ export default function PipelinePage() {
             </h2>
             <LeadActivitiesList leadId={verActividadesLead.id} showToast={showToast} />
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
-              <button
-                onClick={() => setVerActividadesLead(null)}
-                style={{
-                  fontSize: 13,
-                  padding: "9px 16px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 2,
-                  background: "var(--color-panel)",
-                  color: "var(--color-text)",
-                }}
-              >
+              <button onClick={() => setVerActividadesLead(null)} style={buttonSecondaryStyle}>
                 Cerrar
               </button>
             </div>
