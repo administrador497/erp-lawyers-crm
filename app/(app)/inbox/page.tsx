@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
 import { formatIngreso } from "../../../lib/format";
@@ -204,6 +204,50 @@ function InboxView() {
       cancelled = true;
     };
   }, [selectedId]);
+
+  // Refs para leer el estado más reciente dentro del setInterval de abajo
+  // sin tener que recrearlo (y reiniciar la cuenta de 45s) cada vez que
+  // cambian — solo se leen, nunca disparan un render por sí solas.
+  const selectedIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
+  const sendingRef = useRef(false);
+  useEffect(() => {
+    sendingRef.current = sending;
+  }, [sending]);
+
+  // Polling de fondo cada 45s — para enterarse de leads/mensajes nuevos
+  // (correo entrante, WhatsApp) sin recargar la página. El indicador visual
+  // es el mismo badge de no leídos que ya existía (conversations-list.ts ya
+  // calcula mensajes_no_leidos por conversación); esto solo lo mantiene
+  // actualizado. Si hay una conversación abierta, también refresca su hilo
+  // — salvo mientras se está enviando una respuesta, para no pisar el
+  // mensaje optimista que sendReply ya insertó de forma local.
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const convRes = await authedFetch("/api/conversations-list");
+      if (convRes.ok) {
+        const body = await convRes.json();
+        setConversaciones(body.conversaciones ?? []);
+        setEtapas(body.etapas ?? []);
+        setMotivosPerdida(body.motivosPerdida ?? []);
+      }
+
+      const idActiva = selectedIdRef.current;
+      if (idActiva && !sendingRef.current) {
+        const msgRes = await authedFetch(`/api/messages-list?conversacion_id=${encodeURIComponent(idActiva)}`);
+        if (msgRes.ok) {
+          const body = await msgRes.json();
+          setMensajes(body.mensajes ?? []);
+          setConversaciones((prev) => prev.map((c) => (c.id === idActiva ? { ...c, mensajes_no_leidos: 0 } : c)));
+        }
+      }
+    }, 45000);
+
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const selectConversacion = (c: ConversacionRow) => {
     setSelectedId(c.id);

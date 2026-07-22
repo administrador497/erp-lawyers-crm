@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
 import { formatIngreso, priorityStyle } from "../../../lib/format";
@@ -20,6 +20,24 @@ export default function LeadsInboxPage() {
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingLeads, setDeletingLeads] = useState(false);
+  const [nuevosIds, setNuevosIds] = useState<Set<string>>(new Set());
+
+  // Evita que el polling de fondo pise una asignación/eliminación en curso
+  // (mismo criterio que /pipeline).
+  const mutatingRef = useRef(false);
+
+  // Marca ids como "nuevos" para el badge y los quita solos 60s después.
+  const marcarNuevos = (ids: string[]) => {
+    if (ids.length === 0) return;
+    setNuevosIds((prev) => new Set([...prev, ...ids]));
+    setTimeout(() => {
+      setNuevosIds((prev) => {
+        const next = new Set(prev);
+        ids.forEach((id) => next.delete(id));
+        return next;
+      });
+    }, 60000);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -66,8 +84,46 @@ export default function LeadsInboxPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Polling de fondo cada 45s — para enterarse de leads nuevos sin recargar
+  // la página. Se salta el ciclo si hay una asignación/eliminación en curso.
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (mutatingRef.current) return;
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const res = await fetch("/api/leads-inbox", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!res.ok) return;
+      const body = await res.json();
+      const frescos: NewLeadRow[] = body.leads ?? [];
+
+      setLeads((prev) => {
+        const idsPrevios = new Set(prev.map((l) => l.id));
+        const idsNuevos = frescos.filter((l) => !idsPrevios.has(l.id)).map((l) => l.id);
+        if (idsNuevos.length > 0) {
+          marcarNuevos(idsNuevos);
+          showToast(
+            `${idsNuevos.length} lead${idsNuevos.length === 1 ? "" : "s"} nuevo${idsNuevos.length === 1 ? "" : "s"} por asignar.`
+          );
+        }
+        return frescos;
+      });
+      setAssignableUsers(body.assignableUsers ?? []);
+      setSeleccionados((prev) => new Set(Array.from(prev).filter((id) => frescos.some((l) => l.id === id))));
+    }, 45000);
+
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const assignLead = async (leadId: string, responsableId: string) => {
     if (!responsableId) return;
+    mutatingRef.current = true;
     setAssigningId(leadId);
     const supabase = createClient();
     const {
@@ -84,6 +140,7 @@ export default function LeadsInboxPage() {
     });
 
     setAssigningId(null);
+    mutatingRef.current = false;
 
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
@@ -118,6 +175,7 @@ export default function LeadsInboxPage() {
   // lógica nueva del lado del servidor, solo el mismo POST desde otra
   // pantalla.
   const eliminarSeleccionados = async () => {
+    mutatingRef.current = true;
     setDeletingLeads(true);
     const supabase = createClient();
     const {
@@ -134,6 +192,7 @@ export default function LeadsInboxPage() {
     });
 
     setDeletingLeads(false);
+    mutatingRef.current = false;
 
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
@@ -254,7 +313,25 @@ export default function LeadsInboxPage() {
                   />
                 ) : null}
                 <div>
-                  <div style={{ fontSize: 13.5, fontWeight: 600 }}>{lead.nombre_completo}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 600 }}>{lead.nombre_completo}</div>
+                    {nuevosIds.has(lead.id) ? (
+                      <span
+                        style={{
+                          fontSize: 9.5,
+                          fontWeight: 700,
+                          padding: "1px 6px",
+                          borderRadius: 10,
+                          background: "var(--color-red)",
+                          color: "#fff",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.02em",
+                        }}
+                      >
+                        Nuevo
+                      </span>
+                    ) : null}
+                  </div>
                   <div style={{ fontSize: 11.5, color: "var(--color-muted)" }}>
                     {[lead.correo, lead.telefono].filter(Boolean).join(" · ")}
                   </div>

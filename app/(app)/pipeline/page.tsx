@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "../../../lib/supabase/client";
 import { formatCurrency } from "../../../lib/format";
 import { useToast } from "../../../components/useToast";
@@ -49,6 +49,39 @@ export default function PipelinePage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingLeads, setDeletingLeads] = useState(false);
   const [verActividadesLead, setVerActividadesLead] = useState<PipelineLeadRow | null>(null);
+  const [nuevosIds, setNuevosIds] = useState<Set<string>>(new Set());
+
+  // Evitan que el polling de fondo pise una acción en curso: mientras se
+  // arrastra una tarjeta, se está confirmando un motivo de pérdida, o un
+  // movimiento/eliminación ya está en vuelo, un refresh de fondo podría
+  // reemplazar `leads` con datos del servidor que todavía no reflejan esa
+  // acción (o pisar la tarjeta que ya "saltó" de columna de forma
+  // optimista) y se vería como si el cambio se hubiera revertido solo.
+  const mutatingRef = useRef(false);
+  const draggingLeadIdRef = useRef<string | null>(null);
+  const lossPromptRef = useRef<LossPrompt | null>(null);
+
+  useEffect(() => {
+    draggingLeadIdRef.current = draggingLeadId;
+  }, [draggingLeadId]);
+  useEffect(() => {
+    lossPromptRef.current = lossPrompt;
+  }, [lossPrompt]);
+
+  // Marca ids como "nuevos" para el badge y los quita solos 60s después —
+  // cada tanda de ids trae su propio temporizador, así que tandas
+  // superpuestas no se pisan entre sí.
+  const marcarNuevos = (ids: string[]) => {
+    if (ids.length === 0) return;
+    setNuevosIds((prev) => new Set([...prev, ...ids]));
+    setTimeout(() => {
+      setNuevosIds((prev) => {
+        const next = new Set(prev);
+        ids.forEach((id) => next.delete(id));
+        return next;
+      });
+    }, 60000);
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -78,6 +111,40 @@ export default function PipelinePage() {
     load();
   }, []);
 
+  // Polling de fondo cada 45s — para enterarse de leads nuevos (correo
+  // entrante, formulario, etc.) sin tener que recargar la página. Se salta
+  // el ciclo si hay una mutación en curso (drag, motivo de pérdida
+  // pendiente, o un move/delete ya en vuelo) para no pisar un cambio
+  // optimista que el servidor todavía no refleja.
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (mutatingRef.current || draggingLeadIdRef.current || lossPromptRef.current) return;
+
+      const res = await authedFetch("/api/pipeline-list");
+      if (!res.ok) return;
+      const body = await res.json();
+      const frescos: PipelineLeadRow[] = body.leads ?? [];
+
+      setLeads((prev) => {
+        const idsPrevios = new Set(prev.map((l) => l.id));
+        const idsNuevos = frescos.filter((l) => !idsPrevios.has(l.id)).map((l) => l.id);
+        if (idsNuevos.length > 0) {
+          marcarNuevos(idsNuevos);
+          showToast(
+            `${idsNuevos.length} lead${idsNuevos.length === 1 ? "" : "s"} nuevo${idsNuevos.length === 1 ? "" : "s"} en Pipeline.`
+          );
+        }
+        return frescos;
+      });
+      setEtapas(body.etapas ?? []);
+      setMotivosPerdida(body.motivosPerdida ?? []);
+      setSeleccionados((prev) => new Set(Array.from(prev).filter((id) => frescos.some((l) => l.id === id))));
+    }, 45000);
+
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const esAdmin = usuario?.rol === "Administrador general";
 
   const toggleSeleccionado = (leadId: string) => {
@@ -99,6 +166,7 @@ export default function PipelinePage() {
   };
 
   const eliminarSeleccionados = async () => {
+    mutatingRef.current = true;
     setDeletingLeads(true);
     const res = await authedFetch("/api/leads-delete", {
       method: "POST",
@@ -106,6 +174,7 @@ export default function PipelinePage() {
       body: JSON.stringify({ lead_ids: Array.from(seleccionados) }),
     });
     setDeletingLeads(false);
+    mutatingRef.current = false;
 
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
@@ -141,6 +210,7 @@ export default function PipelinePage() {
     previousEtapaId: string,
     motivoPerdidaId?: string
   ) => {
+    mutatingRef.current = true;
     const res = await authedFetch("/api/leads-move-stage", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -150,6 +220,7 @@ export default function PipelinePage() {
         ...(motivoPerdidaId ? { motivo_perdida_id: motivoPerdidaId } : {}),
       }),
     });
+    mutatingRef.current = false;
 
     if (!res.ok) {
       setLeadEtapa(leadId, previousEtapaId);
@@ -309,7 +380,25 @@ export default function PipelinePage() {
                       />
                     ) : null}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12.5, fontWeight: 600 }}>{lead.nombre_completo}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 600 }}>{lead.nombre_completo}</div>
+                        {nuevosIds.has(lead.id) ? (
+                          <span
+                            style={{
+                              fontSize: 9.5,
+                              fontWeight: 700,
+                              padding: "1px 6px",
+                              borderRadius: 10,
+                              background: "var(--color-red)",
+                              color: "#fff",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.02em",
+                            }}
+                          >
+                            Nuevo
+                          </span>
+                        ) : null}
+                      </div>
                       <div style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 3 }}>
                         {lead.servicio ?? "—"}
                       </div>
