@@ -12,9 +12,13 @@ import {
   TIPOS,
   modalInputStyle,
   modalLabelStyle,
+  modalCancelButtonStyle,
+  modalConfirmButtonStyle,
   toDatetimeLocalValue,
   groupActividades,
+  groupAccentColor,
 } from "../../../components/activityShared";
+import { radius, buttonPrimaryStyle } from "../../../components/uiTokens";
 import type { ActividadRow, ContactListRow } from "../../../lib/types";
 
 async function authedFetch(path: string, init: RequestInit = {}) {
@@ -137,10 +141,10 @@ export default function CalendarioPage() {
         key={a.id}
         style={{
           display: "grid",
-          gridTemplateColumns: "120px 1fr 140px",
+          gridTemplateColumns: "110px 1fr 230px",
           gap: 14,
           alignItems: "center",
-          padding: "13px 20px",
+          padding: "10px 20px",
           borderBottom: "1px solid var(--color-border)",
         }}
       >
@@ -176,17 +180,17 @@ export default function CalendarioPage() {
             </div>
           ) : null}
         </div>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", gap: 6 }}>
           <button
             onClick={() =>
               completada ? activityActions.reabrirActividad(a) : activityActions.abrirCompletarActividad(a)
             }
             disabled={activityActions.togglingId === a.id}
             style={{
-              fontSize: 12,
-              padding: "6px 12px",
+              fontSize: 11.5,
+              padding: "5px 10px",
               border: "1px solid var(--color-border)",
-              borderRadius: 2,
+              borderRadius: radius.sm,
               background: completada ? "transparent" : "var(--color-red)",
               color: completada ? "var(--color-muted)" : "#fff",
               opacity: activityActions.togglingId === a.id ? 0.6 : 1,
@@ -197,10 +201,10 @@ export default function CalendarioPage() {
           <button
             onClick={() => activityActions.abrirEditarActividad(a)}
             style={{
-              fontSize: 11.5,
-              padding: "5px 10px",
+              fontSize: 11,
+              padding: "5px 9px",
               border: "1px solid var(--color-border)",
-              borderRadius: 2,
+              borderRadius: radius.sm,
               background: "var(--color-panel)",
               color: "var(--color-text)",
             }}
@@ -211,10 +215,10 @@ export default function CalendarioPage() {
             <button
               onClick={() => generarSeguimiento(a)}
               style={{
-                fontSize: 11.5,
-                padding: "5px 10px",
+                fontSize: 11,
+                padding: "5px 9px",
                 border: "1px solid var(--color-border)",
-                borderRadius: 2,
+                borderRadius: radius.sm,
                 background: "var(--color-panel)",
                 color: "var(--color-blue)",
               }}
@@ -230,18 +234,7 @@ export default function CalendarioPage() {
   return (
     <>
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
-        <button
-          onClick={() => setShowModal(true)}
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            padding: "9px 16px",
-            border: "none",
-            borderRadius: 2,
-            background: "var(--color-red)",
-            color: "#fff",
-          }}
-        >
+        <button onClick={() => setShowModal(true)} style={buttonPrimaryStyle}>
           + Nueva actividad
         </button>
       </div>
@@ -255,7 +248,7 @@ export default function CalendarioPage() {
           style={{
             background: "var(--color-panel)",
             border: "1px solid var(--color-border)",
-            borderRadius: 2,
+            borderRadius: radius.lg,
             padding: "20px",
             fontSize: 13,
             color: "var(--color-muted)",
@@ -268,7 +261,7 @@ export default function CalendarioPage() {
           style={{
             background: "var(--color-panel)",
             border: "1px solid var(--color-border)",
-            borderRadius: 2,
+            borderRadius: radius.lg,
             padding: "20px",
             fontSize: 13,
             color: "var(--color-muted)",
@@ -297,7 +290,8 @@ export default function CalendarioPage() {
                 style={{
                   background: "var(--color-panel)",
                   border: "1px solid var(--color-border)",
-                  borderRadius: 2,
+                  borderLeft: `4px solid ${groupAccentColor(g.key)}`,
+                  borderRadius: radius.lg,
                   padding: "8px 0",
                 }}
               >
@@ -324,7 +318,7 @@ export default function CalendarioPage() {
               width: 380,
               background: "var(--color-panel)",
               border: "1px solid var(--color-border)",
-              borderRadius: 2,
+              borderRadius: radius.lg,
               padding: 24,
               boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
             }}
@@ -394,33 +388,13 @@ export default function CalendarioPage() {
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
-              <button
-                onClick={() => setShowModal(false)}
-                disabled={creating}
-                style={{
-                  fontSize: 13,
-                  padding: "9px 16px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 2,
-                  background: "var(--color-panel)",
-                  color: "var(--color-text)",
-                }}
-              >
+              <button onClick={() => setShowModal(false)} disabled={creating} style={modalCancelButtonStyle}>
                 Cancelar
               </button>
               <button
                 onClick={crearActividad}
                 disabled={creating || !formLeadId}
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  padding: "9px 16px",
-                  border: "none",
-                  borderRadius: 2,
-                  background: "var(--color-red)",
-                  color: "#fff",
-                  opacity: creating || !formLeadId ? 0.6 : 1,
-                }}
+                style={{ ...modalConfirmButtonStyle, opacity: creating || !formLeadId ? 0.6 : 1 }}
               >
                 {creating ? "Creando…" : "Crear"}
               </button>

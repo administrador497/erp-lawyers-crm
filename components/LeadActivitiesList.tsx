@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { createClient } from "../lib/supabase/client";
 import { formatIngreso } from "../lib/format";
 import type { ActividadRow } from "../lib/types";
-import { TIPO_LABEL, groupActividades } from "./activityShared";
+import { TIPO_LABEL, groupActividades, groupAccentColor } from "./activityShared";
+import { radius } from "./uiTokens";
 import { useActivityActions } from "./useActivityActions";
 import ActivityActionModals from "./ActivityActionModals";
 
@@ -106,7 +107,7 @@ export default function LeadActivitiesList({
               fontSize: 11,
               padding: "4px 9px",
               border: "1px solid var(--color-border)",
-              borderRadius: 2,
+              borderRadius: radius.sm,
               background: completada ? "transparent" : "var(--color-red)",
               color: completada ? "var(--color-muted)" : "#fff",
               opacity: activityActions.togglingId === a.id ? 0.6 : 1,
@@ -120,7 +121,7 @@ export default function LeadActivitiesList({
               fontSize: 11,
               padding: "4px 9px",
               border: "1px solid var(--color-border)",
-              borderRadius: 2,
+              borderRadius: radius.sm,
               background: "var(--color-panel)",
               color: "var(--color-text)",
             }}
@@ -140,15 +141,32 @@ export default function LeadActivitiesList({
           <div key={g.key} style={{ marginBottom: 14 }}>
             <div
               style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: "var(--color-blue)",
-                textTransform: "uppercase",
-                letterSpacing: "0.03em",
+                display: "flex",
+                alignItems: "center",
+                gap: 7,
                 marginBottom: 6,
               }}
             >
-              {g.label}
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: groupAccentColor(g.key),
+                  flexShrink: 0,
+                }}
+              />
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: "var(--color-blue)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.03em",
+                }}
+              >
+                {g.label}
+              </span>
             </div>
             {g.items.map(renderRow)}
           </div>

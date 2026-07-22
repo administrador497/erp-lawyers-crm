@@ -7,6 +7,7 @@ import {
   modalCancelButtonStyle,
   modalConfirmButtonStyle,
 } from "./activityShared";
+import { radius } from "./uiTokens";
 import type { ActivityActions } from "./useActivityActions";
 
 // Modales de "Completar actividad" y "Editar actividad", compartidos entre
@@ -34,7 +35,7 @@ export default function ActivityActionModals({ actions }: { actions: ActivityAct
               width: 380,
               background: "var(--color-panel)",
               border: "1px solid var(--color-border)",
-              borderRadius: 2,
+              borderRadius: radius.lg,
               padding: 24,
               boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
             }}
@@ -108,7 +109,7 @@ export default function ActivityActionModals({ actions }: { actions: ActivityAct
               width: 380,
               background: "var(--color-panel)",
               border: "1px solid var(--color-border)",
-              borderRadius: 2,
+              borderRadius: radius.lg,
               padding: 24,
               boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
             }}

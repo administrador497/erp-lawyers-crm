@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { ActividadRow } from "../lib/types";
+import { inputStyle, buttonSecondaryStyle, buttonPrimaryStyle } from "./uiTokens";
 
 export const TIPOS = [
   { value: "llamada", label: "Llamada" },
@@ -19,16 +20,7 @@ export function toDatetimeLocalValue(date: Date): string {
   )}:${pad(date.getMinutes())}`;
 }
 
-export const modalInputStyle: CSSProperties = {
-  width: "100%",
-  boxSizing: "border-box",
-  padding: "9px 11px",
-  border: "1px solid var(--color-border)",
-  borderRadius: 2,
-  background: "var(--color-bg)",
-  color: "var(--color-text)",
-  fontSize: 13,
-};
+export const modalInputStyle: CSSProperties = inputStyle;
 
 export const modalLabelStyle: CSSProperties = {
   fontSize: 12,
@@ -83,21 +75,16 @@ export function groupActividades(actividades: ActividadRow[]): ActividadGroup[] 
   ];
 }
 
-export const modalCancelButtonStyle: CSSProperties = {
-  fontSize: 13,
-  padding: "9px 16px",
-  border: "1px solid var(--color-border)",
-  borderRadius: 2,
-  background: "var(--color-panel)",
-  color: "var(--color-text)",
-};
+export const modalCancelButtonStyle: CSSProperties = buttonSecondaryStyle;
 
-export const modalConfirmButtonStyle: CSSProperties = {
-  fontSize: 13,
-  fontWeight: 600,
-  padding: "9px 16px",
-  border: "none",
-  borderRadius: 2,
-  background: "var(--color-red)",
-  color: "#fff",
-};
+export const modalConfirmButtonStyle: CSSProperties = buttonPrimaryStyle;
+
+// Barra de color por grupo (Atrasadas/Hoy/Pendientes/Finalizadas) — mismo
+// lenguaje rojo=alerta/azul=informativo del resto de la app; "Finalizadas"
+// usa un tono neutro/tenue en vez de un color de marca, porque ya no
+// necesita llamar la atención.
+export function groupAccentColor(key: ActividadGroup["key"]): string {
+  if (key === "atrasadas") return "var(--color-red)";
+  if (key === "finalizadas") return "var(--color-muted)";
+  return "var(--color-blue)";
+}
