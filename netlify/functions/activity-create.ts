@@ -60,6 +60,7 @@ export const handler: Handler = async (event) => {
        servicio:servicio_id ( nombre )`
     )
     .eq("id", lead_id)
+    .is("deleted_at", null)
     .maybeSingle();
 
   if (leadError || !lead) {

@@ -56,11 +56,20 @@ export const handler: Handler = async (event) => {
 
   const { data: actividad, error: actividadError } = await admin
     .from("actividades")
-    .select("id, estado, resultado, proxima_accion, tipo, fecha, descripcion, responsable_id, lead:lead_id ( responsable_id )")
+    .select(
+      "id, estado, resultado, proxima_accion, tipo, fecha, descripcion, responsable_id, lead:lead_id ( responsable_id, deleted_at )"
+    )
     .eq("id", body.activity_id)
     .maybeSingle();
 
   if (actividadError || !actividad) {
+    return jsonResponse(404, { error: "Actividad no encontrada." });
+  }
+
+  // Mismo criterio que _shared/conversationAccess.ts para mensajes: si el
+  // lead detrás ya fue eliminado, la actividad deja de ser editable/
+  // completable por acceso directo, aunque ya no aparezca en ningún listado.
+  if ((actividad as any).lead?.deleted_at) {
     return jsonResponse(404, { error: "Actividad no encontrada." });
   }
 

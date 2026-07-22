@@ -13,13 +13,17 @@ type DeleteBody = {
 // contacto a sus leads — esto solo la usa desde el otro ángulo: eliminar
 // leads directamente, sin tocar su contacto ni el resto de sus leads).
 //
-// Sin cascada a `conversaciones`: esa tabla no tiene su propia columna
-// deleted_at y no le hace falta — conversations-list.ts/activities-list.ts
-// ya filtran por `lead.deleted_at` a través del join con el lead, así que
-// una conversación de un lead recién eliminado deja de listarse sola. El
-// acceso directo por conversacion_id (messages-list.ts/messages-send.ts)
-// también queda cerrado, vía el mismo chequeo agregado en
-// _shared/conversationAccess.ts.
+// Sin cascada a `conversaciones` ni a `actividades`: ninguna de las dos
+// necesita su propia columna deleted_at para esto (a diferencia de
+// conversaciones.deleted_at de migrations/015_soft_delete_conversaciones.sql,
+// que existe por una razón distinta: eliminar UNA conversación puntual sin
+// tocar su lead) — conversations-list.ts y activities-list.ts ya filtran
+// por `lead.deleted_at` a través del join con el lead, así que las
+// conversaciones/actividades de un lead recién eliminado dejan de listarse
+// solas, sin necesidad de marcarlas una por una. El acceso directo también
+// queda cerrado: conversacion_id vía _shared/conversationAccess.ts
+// (messages-list.ts/messages-send.ts) y activity_id vía activity-update.ts,
+// que ahora también rechaza tocar una actividad cuyo lead está eliminado.
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return jsonResponse(405, { error: "Método no permitido." });
