@@ -6,6 +6,14 @@ import { formatCurrency, formatIngreso, priorityStyle } from "../../../lib/forma
 import { useToast } from "../../../components/useToast";
 import ToastHost from "../../../components/ToastHost";
 import LeadActivitiesList from "../../../components/LeadActivitiesList";
+import {
+  radius,
+  avatarStyle,
+  initials,
+  inputStyle,
+  buttonPrimaryStyle,
+  buttonSecondaryStyle,
+} from "../../../components/uiTokens";
 import type { ContactDetail, ContactListRow, CurrentUsuario, HistorialItem, ServicioRow } from "../../../lib/types";
 
 async function authedFetch(path: string, init: RequestInit = {}) {
@@ -55,17 +63,6 @@ const fieldLabelStyle: React.CSSProperties = {
   marginBottom: 4,
 };
 
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  boxSizing: "border-box",
-  padding: "7px 9px",
-  border: "1px solid var(--color-border)",
-  borderRadius: 2,
-  background: "var(--color-bg)",
-  color: "var(--color-text)",
-  fontSize: 13,
-};
-
 const overlayStyle: React.CSSProperties = {
   position: "fixed",
   inset: 0,
@@ -80,7 +77,7 @@ const modalCardStyle: React.CSSProperties = {
   width: 460,
   background: "var(--color-panel)",
   border: "1px solid var(--color-border)",
-  borderRadius: 2,
+  borderRadius: radius.lg,
   padding: 24,
   boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
 };
@@ -90,17 +87,6 @@ const modalLabelStyle: React.CSSProperties = {
   fontWeight: 600,
   color: "var(--color-muted)",
   marginBottom: 6,
-};
-
-const modalInputStyle: React.CSSProperties = {
-  width: "100%",
-  boxSizing: "border-box",
-  padding: "9px 11px",
-  border: "1px solid var(--color-border)",
-  borderRadius: 2,
-  background: "var(--color-bg)",
-  color: "var(--color-text)",
-  fontSize: 13,
 };
 
 type NuevoContactoForm = {
@@ -342,18 +328,7 @@ export default function ContactosPage() {
   return (
     <>
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
-        <button
-          onClick={openCreateModal}
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            padding: "9px 16px",
-            border: "none",
-            borderRadius: 2,
-            background: "var(--color-red)",
-            color: "#fff",
-          }}
-        >
+        <button onClick={openCreateModal} style={buttonPrimaryStyle}>
           + Nuevo contacto
         </button>
       </div>
@@ -363,7 +338,7 @@ export default function ContactosPage() {
         style={{
           background: "var(--color-panel)",
           border: "1px solid var(--color-border)",
-          borderRadius: 2,
+          borderRadius: radius.lg,
           overflow: "hidden",
           height: "fit-content",
         }}
@@ -380,14 +355,30 @@ export default function ContactosPage() {
               key={c.id}
               onClick={() => setSelectedLeadId(c.id)}
               style={{
-                padding: "12px 16px",
+                padding: "9px 14px",
                 borderBottom: "1px solid var(--color-border)",
                 cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
                 background: c.id === selectedLeadId ? "var(--color-panel-2)" : "transparent",
               }}
             >
-              <div style={{ fontSize: 13, fontWeight: 600 }}>{c.nombre_completo}</div>
-              <div style={{ fontSize: 11.5, color: "var(--color-muted)" }}>{c.servicio ?? "—"}</div>
+              <div style={avatarStyle(30)}>{initials(c.nombre_completo)}</div>
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {c.nombre_completo}
+                </div>
+                <div style={{ fontSize: 11, color: "var(--color-muted)" }}>{c.servicio ?? "—"}</div>
+              </div>
             </div>
           ))
         )}
@@ -397,7 +388,7 @@ export default function ContactosPage() {
         style={{
           background: "var(--color-panel)",
           border: "1px solid var(--color-border)",
-          borderRadius: 2,
+          borderRadius: radius.lg,
           padding: 24,
         }}
       >
@@ -417,12 +408,15 @@ export default function ContactosPage() {
                 marginBottom: 20,
               }}
             >
-              <div>
-                <h2 style={{ fontFamily: "var(--font-heading)", fontSize: 20, fontWeight: 600 }}>
-                  {detail.nombre_completo}
-                </h2>
-                <div style={{ fontSize: 12.5, color: "var(--color-muted)", marginTop: 4 }}>
-                  {detail.servicio ?? "Sin servicio"} · {detail.pais ?? "—"}
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={avatarStyle(40)}>{initials(detail.nombre_completo)}</div>
+                <div>
+                  <h2 style={{ fontFamily: "var(--font-heading)", fontSize: 19, fontWeight: 600 }}>
+                    {detail.nombre_completo}
+                  </h2>
+                  <div style={{ fontSize: 12.5, color: "var(--color-muted)", marginTop: 3 }}>
+                    {detail.servicio ?? "Sin servicio"} · {detail.pais ?? "—"}
+                  </div>
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -431,7 +425,7 @@ export default function ContactosPage() {
                     fontSize: 11,
                     fontWeight: 700,
                     padding: "4px 12px",
-                    borderRadius: 10,
+                    borderRadius: radius.pill,
                     background: "var(--color-panel-2)",
                     color: "var(--color-blue)",
                   }}
@@ -443,12 +437,9 @@ export default function ContactosPage() {
                     onClick={deleteContact}
                     disabled={deleting}
                     style={{
+                      ...buttonSecondaryStyle,
                       fontSize: 12,
-                      fontWeight: 600,
                       padding: "6px 12px",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: 2,
-                      background: "var(--color-panel)",
                       color: "var(--color-red)",
                       opacity: deleting ? 0.6 : 1,
                     }}
@@ -459,65 +450,46 @@ export default function ContactosPage() {
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: 8, marginBottom: 18, alignItems: "center" }}>
-              <div
-                onClick={() => setTab("info")}
-                style={{
-                  padding: "7px 14px",
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  borderRadius: 2,
-                  background: tab === "info" ? "var(--color-red)" : "transparent",
-                  color: tab === "info" ? "#fff" : "var(--color-muted)",
-                }}
-              >
-                Información
-              </div>
-              <div
-                onClick={() => setTab("historial")}
-                style={{
-                  padding: "7px 14px",
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  borderRadius: 2,
-                  background: tab === "historial" ? "var(--color-red)" : "transparent",
-                  color: tab === "historial" ? "#fff" : "var(--color-muted)",
-                }}
-              >
-                Historial
-              </div>
-              <div
-                onClick={() => setTab("actividades")}
-                style={{
-                  padding: "7px 14px",
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  borderRadius: 2,
-                  background: tab === "actividades" ? "var(--color-red)" : "transparent",
-                  color: tab === "actividades" ? "#fff" : "var(--color-muted)",
-                }}
-              >
-                Actividades
-              </div>
+            <div
+              style={{
+                display: "flex",
+                gap: 20,
+                marginBottom: 18,
+                alignItems: "center",
+                borderBottom: "1px solid var(--color-border)",
+              }}
+            >
+              {(
+                [
+                  { key: "info", label: "Información" },
+                  { key: "historial", label: "Historial" },
+                  { key: "actividades", label: "Actividades" },
+                ] as const
+              ).map((t) => (
+                <div
+                  key={t.key}
+                  onClick={() => setTab(t.key)}
+                  style={{
+                    padding: "8px 2px",
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    borderBottom: tab === t.key ? "2px solid var(--color-red)" : "2px solid transparent",
+                    color: tab === t.key ? "var(--color-red)" : "var(--color-muted)",
+                  }}
+                >
+                  {t.label}
+                </div>
+              ))}
 
               {tab === "info" ? (
-                <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                <div style={{ marginLeft: "auto", display: "flex", gap: 8, paddingBottom: 6 }}>
                   {editing ? (
                     <>
                       <button
                         onClick={cancelEditing}
                         disabled={saving}
-                        style={{
-                          fontSize: 12,
-                          padding: "6px 12px",
-                          border: "1px solid var(--color-border)",
-                          borderRadius: 2,
-                          background: "var(--color-panel)",
-                          color: "var(--color-text)",
-                        }}
+                        style={{ ...buttonSecondaryStyle, fontSize: 12, padding: "6px 12px" }}
                       >
                         Cancelar
                       </button>
@@ -525,13 +497,9 @@ export default function ContactosPage() {
                         onClick={saveEditing}
                         disabled={saving}
                         style={{
+                          ...buttonPrimaryStyle,
                           fontSize: 12,
-                          fontWeight: 600,
                           padding: "6px 12px",
-                          border: "none",
-                          borderRadius: 2,
-                          background: "var(--color-red)",
-                          color: "#fff",
                           opacity: saving ? 0.6 : 1,
                         }}
                       >
@@ -542,13 +510,10 @@ export default function ContactosPage() {
                     <button
                       onClick={startEditing}
                       style={{
+                        ...buttonSecondaryStyle,
                         fontSize: 12,
                         padding: "6px 12px",
-                        border: "1px solid var(--color-border)",
-                        borderRadius: 2,
-                        background: "var(--color-panel)",
                         color: "var(--color-blue)",
-                        fontWeight: 600,
                       }}
                     >
                       Editar
@@ -645,10 +610,10 @@ export default function ContactosPage() {
                       return (
                         <span
                           style={{
-                            fontSize: 11,
+                            fontSize: 10.5,
                             fontWeight: 700,
-                            padding: "3px 9px",
-                            borderRadius: 10,
+                            padding: "2px 8px",
+                            borderRadius: radius.pill,
                             background: prio.bg,
                             color: prio.color,
                           }}
@@ -765,7 +730,7 @@ export default function ContactosPage() {
                 <input
                   value={createForm.nombre}
                   onChange={(e) => setCreateForm({ ...createForm, nombre: e.target.value })}
-                  style={modalInputStyle}
+                  style={inputStyle}
                 />
               </div>
               <div>
@@ -773,7 +738,7 @@ export default function ContactosPage() {
                 <input
                   value={createForm.primer_apellido}
                   onChange={(e) => setCreateForm({ ...createForm, primer_apellido: e.target.value })}
-                  style={modalInputStyle}
+                  style={inputStyle}
                 />
               </div>
               <div style={{ gridColumn: "span 2" }}>
@@ -781,7 +746,7 @@ export default function ContactosPage() {
                 <input
                   value={createForm.segundo_apellido}
                   onChange={(e) => setCreateForm({ ...createForm, segundo_apellido: e.target.value })}
-                  style={modalInputStyle}
+                  style={inputStyle}
                 />
               </div>
 
@@ -792,7 +757,7 @@ export default function ContactosPage() {
                   value={createForm.correo}
                   onChange={(e) => setCreateForm({ ...createForm, correo: e.target.value })}
                   placeholder="nombre@dominio.com"
-                  style={modalInputStyle}
+                  style={inputStyle}
                 />
               </div>
 
@@ -802,7 +767,7 @@ export default function ContactosPage() {
                   value={createForm.telefono}
                   onChange={(e) => setCreateForm({ ...createForm, telefono: e.target.value })}
                   placeholder="+50688000000"
-                  style={modalInputStyle}
+                  style={inputStyle}
                 />
               </div>
 
@@ -811,7 +776,7 @@ export default function ContactosPage() {
                 <input
                   value={createForm.pais}
                   onChange={(e) => setCreateForm({ ...createForm, pais: e.target.value })}
-                  style={modalInputStyle}
+                  style={inputStyle}
                 />
               </div>
               <div style={{ gridColumn: "span 2" }}>
@@ -819,7 +784,7 @@ export default function ContactosPage() {
                 <input
                   value={createForm.empresa_nombre}
                   onChange={(e) => setCreateForm({ ...createForm, empresa_nombre: e.target.value })}
-                  style={modalInputStyle}
+                  style={inputStyle}
                 />
               </div>
 
@@ -828,7 +793,7 @@ export default function ContactosPage() {
                 <select
                   value={createForm.servicio_id}
                   onChange={(e) => setCreateForm({ ...createForm, servicio_id: e.target.value })}
-                  style={modalInputStyle}
+                  style={inputStyle}
                 >
                   <option value="">Sin especificar</option>
                   {servicios.map((s) => (
@@ -841,33 +806,13 @@ export default function ContactosPage() {
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
-              <button
-                onClick={() => setShowCreateModal(false)}
-                disabled={creating}
-                style={{
-                  fontSize: 13,
-                  padding: "9px 16px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 2,
-                  background: "var(--color-panel)",
-                  color: "var(--color-text)",
-                }}
-              >
+              <button onClick={() => setShowCreateModal(false)} disabled={creating} style={buttonSecondaryStyle}>
                 Cancelar
               </button>
               <button
                 onClick={submitCreate}
                 disabled={creating}
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  padding: "9px 16px",
-                  border: "none",
-                  borderRadius: 2,
-                  background: "var(--color-red)",
-                  color: "#fff",
-                  opacity: creating ? 0.6 : 1,
-                }}
+                style={{ ...buttonPrimaryStyle, opacity: creating ? 0.6 : 1 }}
               >
                 {creating ? "Creando…" : "Crear contacto"}
               </button>
