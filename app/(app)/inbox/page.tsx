@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
 import { formatIngreso } from "../../../lib/format";
@@ -109,6 +109,7 @@ function InboxView() {
   const [usuario, setUsuario] = useState<CurrentUsuario | null>(null);
   const [showDeleteConvModal, setShowDeleteConvModal] = useState(false);
   const [deletingConversacion, setDeletingConversacion] = useState(false);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [loadingList, setLoadingList] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [error, setError] = useState("");
@@ -160,10 +161,13 @@ function InboxView() {
         setUsuario(meBody.usuario ?? null);
       }
 
+      // Sin selección por defecto — la Bandeja debe abrir vacía hasta que el
+      // usuario elija una conversación. La única excepción es un deep-link
+      // explícito (?lead=, usado por "Responder" en /leads y por los enlaces
+      // de /calendario), que sí cuenta como una elección ya hecha.
       const porLead = leadParam ? lista.find((c) => c.lead_id === leadParam) : null;
-      const inicial = porLead ?? lista[0] ?? null;
-      setSelectedId(inicial?.id ?? null);
-      if (inicial) setReplyChannel(inicial.canal === "whatsapp" ? "whatsapp" : "correo");
+      setSelectedId(porLead?.id ?? null);
+      if (porLead) setReplyChannel(porLead.canal === "whatsapp" ? "whatsapp" : "correo");
 
       setLoadingList(false);
     };
@@ -204,6 +208,19 @@ function InboxView() {
       cancelled = true;
     };
   }, [selectedId]);
+
+  // Al abrir una conversación, el hilo debe verse desde el mensaje más
+  // reciente, no desde el primero — useLayoutEffect (no useEffect) para que
+  // el salto ocurra antes de pintar y no se note un parpadeo arriba→abajo.
+  // Se dispara solo cuando termina de cargar (loadingMessages true->false)
+  // para esa conversación, no en cada actualización de `mensajes` — así un
+  // refresco de fondo (polling) que llega mientras el usuario está leyendo
+  // mensajes anteriores no le salta el scroll hacia abajo solo.
+  useLayoutEffect(() => {
+    if (!loadingMessages && messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  }, [loadingMessages, selectedId]);
 
   // Refs para leer el estado más reciente dentro del setInterval de abajo
   // sin tener que recrearlo (y reiniciar la cuenta de 45s) cada vez que
@@ -491,6 +508,7 @@ function InboxView() {
   };
 
   const activa = conversaciones.find((c) => c.id === selectedId) ?? null;
+  const totalNoLeidos = conversaciones.reduce((sum, c) => sum + c.mensajes_no_leidos, 0);
 
   return (
     <>
@@ -509,7 +527,44 @@ function InboxView() {
           overflow: "hidden",
         }}
       >
-        <div style={{ borderRight: "1px solid var(--color-border)", overflow: "auto", minHeight: 0 }}>
+        <div style={{ borderRight: "1px solid var(--color-border)", display: "flex", flexDirection: "column", minHeight: 0 }}>
+          <div
+            style={{
+              padding: "12px 16px",
+              borderBottom: "1px solid var(--color-border)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexShrink: 0,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: "var(--color-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.03em",
+              }}
+            >
+              Conversaciones
+            </span>
+            {totalNoLeidos > 0 ? (
+              <span
+                style={{
+                  background: "var(--color-red)",
+                  color: "#fff",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  padding: "2px 8px",
+                  borderRadius: 10,
+                }}
+              >
+                {totalNoLeidos} sin leer
+              </span>
+            ) : null}
+          </div>
+          <div style={{ flex: 1, overflow: "auto", minHeight: 0 }}>
           {loadingList ? (
             <div style={{ padding: "20px 16px", fontSize: 13, color: "var(--color-muted)" }}>
               Cargando…
@@ -570,6 +625,7 @@ function InboxView() {
               </div>
             ))
           )}
+          </div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
@@ -709,6 +765,7 @@ function InboxView() {
               ) : null}
 
               <div
+                ref={messagesContainerRef}
                 style={{
                   flex: 1,
                   minHeight: 0,
