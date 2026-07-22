@@ -84,40 +84,57 @@ export default function LeadsInboxPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Un ciclo de refresco de fondo, reutilizado por el intervalo de 45s y
+  // por el listener de visibilitychange de abajo. Se salta si hay una
+  // asignación/eliminación en curso.
+  const pollLeadsInbox = async () => {
+    if (mutatingRef.current) return;
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) return;
+
+    const res = await fetch("/api/leads-inbox", {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (!res.ok) return;
+    const body = await res.json();
+    const frescos: NewLeadRow[] = body.leads ?? [];
+
+    setLeads((prev) => {
+      const idsPrevios = new Set(prev.map((l) => l.id));
+      const idsNuevos = frescos.filter((l) => !idsPrevios.has(l.id)).map((l) => l.id);
+      if (idsNuevos.length > 0) {
+        marcarNuevos(idsNuevos);
+        showToast(
+          `${idsNuevos.length} lead${idsNuevos.length === 1 ? "" : "s"} nuevo${idsNuevos.length === 1 ? "" : "s"} por asignar.`
+        );
+      }
+      return frescos;
+    });
+    setAssignableUsers(body.assignableUsers ?? []);
+    setSeleccionados((prev) => new Set(Array.from(prev).filter((id) => frescos.some((l) => l.id === id))));
+  };
+
   // Polling de fondo cada 45s — para enterarse de leads nuevos sin recargar
-  // la página. Se salta el ciclo si hay una asignación/eliminación en curso.
+  // la página. Los navegadores frenan/pausan los `setInterval` de una
+  // pestaña en segundo plano, así que si el usuario estuvo en otra pestaña
+  // o app, el conteo puede quedar desactualizado hasta el próximo tick — el
+  // listener de `visibilitychange` fuerza un refresco inmediato apenas la
+  // pestaña vuelve a estar visible.
   useEffect(() => {
-    const interval = setInterval(async () => {
-      if (mutatingRef.current) return;
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) return;
+    const interval = setInterval(pollLeadsInbox, 45000);
 
-      const res = await fetch("/api/leads-inbox", {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-      if (!res.ok) return;
-      const body = await res.json();
-      const frescos: NewLeadRow[] = body.leads ?? [];
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") pollLeadsInbox();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
-      setLeads((prev) => {
-        const idsPrevios = new Set(prev.map((l) => l.id));
-        const idsNuevos = frescos.filter((l) => !idsPrevios.has(l.id)).map((l) => l.id);
-        if (idsNuevos.length > 0) {
-          marcarNuevos(idsNuevos);
-          showToast(
-            `${idsNuevos.length} lead${idsNuevos.length === 1 ? "" : "s"} nuevo${idsNuevos.length === 1 ? "" : "s"} por asignar.`
-          );
-        }
-        return frescos;
-      });
-      setAssignableUsers(body.assignableUsers ?? []);
-      setSeleccionados((prev) => new Set(Array.from(prev).filter((id) => frescos.some((l) => l.id === id))));
-    }, 45000);
-
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
