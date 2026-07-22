@@ -7,6 +7,15 @@ import { formatIngreso } from "../../../lib/format";
 import { useToast } from "../../../components/useToast";
 import ToastHost from "../../../components/ToastHost";
 import LeadActivitiesList from "../../../components/LeadActivitiesList";
+import {
+  radius,
+  avatarStyle,
+  initials,
+  badgeStyle,
+  inputStyle,
+  buttonPrimaryStyle,
+  buttonSecondaryStyle,
+} from "../../../components/uiTokens";
 import type {
   AdjuntoRow,
   ConversacionRow,
@@ -522,7 +531,7 @@ function InboxView() {
           gridTemplateColumns: "300px 1fr",
           background: "var(--color-panel)",
           border: "1px solid var(--color-border)",
-          borderRadius: 2,
+          borderRadius: radius.lg,
           height: "calc(100vh - 170px)",
           overflow: "hidden",
         }}
@@ -550,18 +559,7 @@ function InboxView() {
               Conversaciones
             </span>
             {totalNoLeidos > 0 ? (
-              <span
-                style={{
-                  background: "var(--color-red)",
-                  color: "#fff",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  padding: "2px 8px",
-                  borderRadius: 10,
-                }}
-              >
-                {totalNoLeidos} sin leer
-              </span>
+              <span style={{ ...badgeStyle("alert"), fontSize: 11 }}>{totalNoLeidos} sin leer</span>
             ) : null}
           </div>
           <div style={{ flex: 1, overflow: "auto", minHeight: 0 }}>
@@ -579,48 +577,51 @@ function InboxView() {
                 key={c.id}
                 onClick={() => selectConversacion(c)}
                 style={{
-                  padding: "13px 16px",
+                  padding: "9px 14px",
                   borderBottom: "1px solid var(--color-border)",
                   cursor: "pointer",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 10,
                   background: c.id === selectedId ? "var(--color-panel-2)" : "transparent",
                 }}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                  <div style={{ fontSize: 13, fontWeight: c.mensajes_no_leidos > 0 ? 700 : 600 }}>
-                    {c.contacto_nombre}
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    {c.mensajes_no_leidos > 0 ? (
-                      <span
-                        style={{
-                          background: "var(--color-red)",
-                          color: "#fff",
-                          fontSize: 10,
-                          fontWeight: 700,
-                          padding: "1px 7px",
-                          borderRadius: 10,
-                        }}
-                      >
-                        {c.mensajes_no_leidos}
-                      </span>
-                    ) : null}
-                    <div style={{ fontSize: 10.5, color: "var(--color-muted)" }}>
-                      {CANAL_LABEL[c.canal ?? ""] ?? c.canal ?? "—"}
+                <div style={avatarStyle(32)}>{initials(c.contacto_nombre)}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 6 }}>
+                    <div
+                      style={{
+                        fontSize: 12.5,
+                        fontWeight: c.mensajes_no_leidos > 0 ? 700 : 600,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {c.contacto_nombre}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                      {c.mensajes_no_leidos > 0 ? (
+                        <span style={badgeStyle("alert")}>{c.mensajes_no_leidos}</span>
+                      ) : null}
+                      <div style={{ fontSize: 10, color: "var(--color-muted)" }}>
+                        {CANAL_LABEL[c.canal ?? ""] ?? c.canal ?? "—"}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: c.mensajes_no_leidos > 0 ? 700 : 400,
-                    color: c.mensajes_no_leidos > 0 ? "var(--color-text)" : "var(--color-muted)",
-                    marginTop: 3,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {c.ultimo_mensaje ?? "Sin mensajes"}
+                  <div
+                    style={{
+                      fontSize: 11.5,
+                      fontWeight: c.mensajes_no_leidos > 0 ? 700 : 400,
+                      color: c.mensajes_no_leidos > 0 ? "var(--color-text)" : "var(--color-muted)",
+                      marginTop: 2,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {c.ultimo_mensaje ?? "Sin mensajes"}
+                  </div>
                 </div>
               </div>
             ))
@@ -653,11 +654,14 @@ function InboxView() {
                   alignItems: "center",
                 }}
               >
-                <div>
-                  <div style={{ fontSize: 14.5, fontWeight: 700 }}>{activa.contacto_nombre}</div>
-                  <div style={{ fontSize: 11.5, color: "var(--color-muted)" }}>
-                    {activa.servicio ?? "Sin servicio"} · Responsable:{" "}
-                    {activa.responsable_nombre ?? "Sin asignar"}
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={avatarStyle(34)}>{initials(activa.contacto_nombre)}</div>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700 }}>{activa.contacto_nombre}</div>
+                    <div style={{ fontSize: 11.5, color: "var(--color-muted)" }}>
+                      {activa.servicio ?? "Sin servicio"} · Responsable:{" "}
+                      {activa.responsable_nombre ?? "Sin asignar"}
+                    </div>
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -671,7 +675,7 @@ function InboxView() {
                         fontSize: 11.5,
                         fontWeight: 700,
                         padding: "5px 9px",
-                        borderRadius: 10,
+                        borderRadius: radius.pill,
                         border: "none",
                         background: "var(--color-panel-2)",
                         color: "var(--color-blue)",
@@ -690,7 +694,7 @@ function InboxView() {
                         fontSize: 11,
                         fontWeight: 700,
                         padding: "3px 10px",
-                        borderRadius: 10,
+                        borderRadius: radius.pill,
                         background: "var(--color-panel-2)",
                         color: "var(--color-blue)",
                       }}
@@ -702,13 +706,10 @@ function InboxView() {
                     onClick={abrirNuevaActividad}
                     disabled={!activa.lead_id}
                     style={{
+                      ...buttonSecondaryStyle,
                       fontSize: 11.5,
                       fontWeight: 600,
                       padding: "6px 12px",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: 2,
-                      background: "var(--color-panel)",
-                      color: "var(--color-text)",
                       opacity: activa.lead_id ? 1 : 0.5,
                     }}
                   >
@@ -718,13 +719,11 @@ function InboxView() {
                     <button
                       onClick={() => setShowActividades((v) => !v)}
                       style={{
+                        ...buttonSecondaryStyle,
                         fontSize: 11.5,
                         fontWeight: 600,
                         padding: "6px 12px",
-                        border: "1px solid var(--color-border)",
-                        borderRadius: 2,
                         background: showActividades ? "var(--color-panel-2)" : "var(--color-panel)",
-                        color: "var(--color-text)",
                       }}
                     >
                       Actividades {showActividades ? "▾" : "▸"}
@@ -735,12 +734,10 @@ function InboxView() {
                       onClick={() => setShowDeleteConvModal(true)}
                       title="Eliminar solo esta conversación (el lead y el contacto no se ven afectados)"
                       style={{
+                        ...buttonSecondaryStyle,
                         fontSize: 11.5,
                         fontWeight: 600,
                         padding: "6px 12px",
-                        border: "1px solid var(--color-border)",
-                        borderRadius: 2,
-                        background: "var(--color-panel)",
                         color: "var(--color-red)",
                       }}
                     >
@@ -793,7 +790,7 @@ function InboxView() {
                           alignSelf: saliente ? "flex-end" : "flex-start",
                           background: saliente ? "var(--color-blue)" : "var(--color-panel-2)",
                           color: saliente ? "#fff" : "var(--color-text)",
-                          borderRadius: 6,
+                          borderRadius: radius.md,
                           padding: "10px 14px",
                         }}
                       >
@@ -812,7 +809,7 @@ function InboxView() {
                                   gap: 6,
                                   fontSize: 11.5,
                                   padding: "5px 8px",
-                                  borderRadius: 2,
+                                  borderRadius: radius.sm,
                                   background: saliente ? "rgba(255,255,255,0.15)" : "var(--color-panel)",
                                   cursor: a.id.startsWith("temp-") ? "default" : "pointer",
                                   textDecoration: a.id.startsWith("temp-") ? "none" : "underline",
@@ -838,7 +835,7 @@ function InboxView() {
 
               <div style={{ borderTop: "1px solid var(--color-border)" }}>
                 {adjuntosPendientes.length > 0 ? (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "10px 20px 0" }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "8px 14px 0" }}>
                     {adjuntosPendientes.map((a) => (
                       <div
                         key={a.nombre}
@@ -848,7 +845,7 @@ function InboxView() {
                           gap: 6,
                           fontSize: 11.5,
                           padding: "4px 8px",
-                          borderRadius: 2,
+                          borderRadius: radius.sm,
                           background: "var(--color-panel-2)",
                         }}
                       >
@@ -866,17 +863,15 @@ function InboxView() {
                   </div>
                 ) : null}
 
-                <div style={{ padding: "14px 20px", display: "flex", gap: 10 }}>
+                <div style={{ padding: "10px 14px", display: "flex", gap: 8 }}>
                   <select
                     value={replyChannel}
                     onChange={(e) => setReplyChannel(e.target.value as "correo" | "whatsapp")}
                     style={{
-                      fontSize: 12,
+                      ...inputStyle,
+                      width: "auto",
                       padding: "0 8px",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: 2,
-                      background: "var(--color-bg)",
-                      color: "var(--color-text)",
+                      fontSize: 12,
                     }}
                   >
                     <option value="correo">Correo</option>
@@ -897,11 +892,9 @@ function InboxView() {
                     onClick={() => document.getElementById("inbox-adjunto-input")?.click()}
                     title="Adjuntar archivo"
                     style={{
+                      ...buttonSecondaryStyle,
                       padding: "0 12px",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: 2,
                       background: "var(--color-bg)",
-                      color: "var(--color-text)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -911,40 +904,27 @@ function InboxView() {
                   </button>
                   <input
                     value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      sendReply();
-                    }
-                  }}
-                  placeholder="Escriba una respuesta…"
-                  style={{
-                    flex: 1,
-                    padding: "10px 12px",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 2,
-                    background: "var(--color-bg)",
-                    color: "var(--color-text)",
-                    fontSize: 13,
-                  }}
-                />
-                <button
-                  onClick={sendReply}
-                  disabled={sending || !replyText.trim()}
-                  style={{
-                    padding: "10px 18px",
-                    border: "none",
-                    borderRadius: 2,
-                    background: "var(--color-red)",
-                    color: "#fff",
-                    fontWeight: 600,
-                    fontSize: 13,
-                    opacity: sending || !replyText.trim() ? 0.6 : 1,
-                  }}
-                >
-                  Enviar
-                </button>
+                    onChange={(e) => setReplyText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        sendReply();
+                      }
+                    }}
+                    placeholder="Escriba una respuesta…"
+                    style={{ ...inputStyle, flex: 1, padding: "9px 12px" }}
+                  />
+                  <button
+                    onClick={sendReply}
+                    disabled={sending || !replyText.trim()}
+                    style={{
+                      ...buttonPrimaryStyle,
+                      padding: "9px 18px",
+                      opacity: sending || !replyText.trim() ? 0.6 : 1,
+                    }}
+                  >
+                    Enviar
+                  </button>
                 </div>
               </div>
             </>
@@ -969,7 +949,7 @@ function InboxView() {
               width: 340,
               background: "var(--color-panel)",
               border: "1px solid var(--color-border)",
-              borderRadius: 2,
+              borderRadius: radius.lg,
               padding: 24,
               boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
             }}
@@ -989,17 +969,7 @@ function InboxView() {
               <select
                 value={selectedMotivoId}
                 onChange={(e) => setSelectedMotivoId(e.target.value)}
-                style={{
-                  width: "100%",
-                  boxSizing: "border-box",
-                  padding: "9px 11px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 2,
-                  background: "var(--color-bg)",
-                  color: "var(--color-text)",
-                  fontSize: 13,
-                  marginBottom: 20,
-                }}
+                style={{ ...inputStyle, marginBottom: 20 }}
               >
                 {motivosPerdida.map((m) => (
                   <option key={m.id} value={m.id}>
@@ -1010,31 +980,14 @@ function InboxView() {
             )}
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-              <button
-                onClick={cancelLossPrompt}
-                disabled={confirmingLoss}
-                style={{
-                  fontSize: 13,
-                  padding: "9px 16px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 2,
-                  background: "var(--color-panel)",
-                  color: "var(--color-text)",
-                }}
-              >
+              <button onClick={cancelLossPrompt} disabled={confirmingLoss} style={buttonSecondaryStyle}>
                 Cancelar
               </button>
               <button
                 onClick={confirmLossPrompt}
                 disabled={confirmingLoss || !selectedMotivoId}
                 style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  padding: "9px 16px",
-                  border: "none",
-                  borderRadius: 2,
-                  background: "var(--color-red)",
-                  color: "#fff",
+                  ...buttonPrimaryStyle,
                   opacity: confirmingLoss || !selectedMotivoId ? 0.6 : 1,
                 }}
               >
@@ -1062,7 +1015,7 @@ function InboxView() {
               width: 380,
               background: "var(--color-panel)",
               border: "1px solid var(--color-border)",
-              borderRadius: 2,
+              borderRadius: radius.lg,
               padding: 24,
               boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
             }}
@@ -1079,20 +1032,7 @@ function InboxView() {
                 <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-muted)", marginBottom: 6 }}>
                   Tipo
                 </div>
-                <select
-                  value={activityTipo}
-                  onChange={(e) => setActivityTipo(e.target.value)}
-                  style={{
-                    width: "100%",
-                    boxSizing: "border-box",
-                    padding: "9px 11px",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 2,
-                    background: "var(--color-bg)",
-                    color: "var(--color-text)",
-                    fontSize: 13,
-                  }}
-                >
+                <select value={activityTipo} onChange={(e) => setActivityTipo(e.target.value)} style={inputStyle}>
                   {ACTIVIDAD_TIPOS.map((t) => (
                     <option key={t.value} value={t.value}>
                       {t.label}
@@ -1109,16 +1049,7 @@ function InboxView() {
                   type="datetime-local"
                   value={activityFecha}
                   onChange={(e) => setActivityFecha(e.target.value)}
-                  style={{
-                    width: "100%",
-                    boxSizing: "border-box",
-                    padding: "9px 11px",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 2,
-                    background: "var(--color-bg)",
-                    color: "var(--color-text)",
-                    fontSize: 13,
-                  }}
+                  style={inputStyle}
                 />
               </div>
 
@@ -1130,17 +1061,7 @@ function InboxView() {
                   value={activityDescripcion}
                   onChange={(e) => setActivityDescripcion(e.target.value)}
                   rows={3}
-                  style={{
-                    width: "100%",
-                    boxSizing: "border-box",
-                    padding: "9px 11px",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 2,
-                    background: "var(--color-bg)",
-                    color: "var(--color-text)",
-                    fontSize: 13,
-                    resize: "vertical",
-                  }}
+                  style={{ ...inputStyle, resize: "vertical" }}
                 />
               </div>
             </div>
@@ -1149,30 +1070,14 @@ function InboxView() {
               <button
                 onClick={() => setShowActivityModal(false)}
                 disabled={creatingActivity}
-                style={{
-                  fontSize: 13,
-                  padding: "9px 16px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 2,
-                  background: "var(--color-panel)",
-                  color: "var(--color-text)",
-                }}
+                style={buttonSecondaryStyle}
               >
                 Cancelar
               </button>
               <button
                 onClick={crearActividad}
                 disabled={creatingActivity}
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  padding: "9px 16px",
-                  border: "none",
-                  borderRadius: 2,
-                  background: "var(--color-red)",
-                  color: "#fff",
-                  opacity: creatingActivity ? 0.6 : 1,
-                }}
+                style={{ ...buttonPrimaryStyle, opacity: creatingActivity ? 0.6 : 1 }}
               >
                 {creatingActivity ? "Creando…" : "Crear"}
               </button>
@@ -1198,7 +1103,7 @@ function InboxView() {
               width: 380,
               background: "var(--color-panel)",
               border: "1px solid var(--color-border)",
-              borderRadius: 2,
+              borderRadius: radius.lg,
               padding: 24,
               boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
             }}
@@ -1216,14 +1121,7 @@ function InboxView() {
               <button
                 onClick={() => setShowDeleteConvModal(false)}
                 disabled={deletingConversacion}
-                style={{
-                  fontSize: 13,
-                  padding: "9px 16px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 2,
-                  background: "var(--color-panel)",
-                  color: "var(--color-text)",
-                }}
+                style={buttonSecondaryStyle}
               >
                 Cancelar
               </button>
@@ -1231,13 +1129,7 @@ function InboxView() {
                 onClick={eliminarConversacion}
                 disabled={deletingConversacion}
                 style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  padding: "9px 16px",
-                  border: "none",
-                  borderRadius: 2,
-                  background: "var(--color-red)",
-                  color: "#fff",
+                  ...buttonPrimaryStyle,
                   opacity: deletingConversacion ? 0.6 : 1,
                 }}
               >
