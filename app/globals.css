@@ -21,6 +21,12 @@
   --color-accent-alert: var(--color-red);
   --font-heading: var(--font-source-serif), "Source Serif 4", serif;
   --font-body: var(--font-public-sans), "Public Sans", sans-serif;
+  /* Escala de radios del rediseño (más redondeado que el borderRadius:2 fijo
+     que se usaba en todos lados) — components/uiTokens.ts expone estos
+     mismos valores como número para usarlos directo en style={{}}. */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
 }
 
 [data-theme="dark"] {

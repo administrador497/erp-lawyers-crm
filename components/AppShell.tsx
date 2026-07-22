@@ -12,13 +12,15 @@ type NavItem = {
   showBadge?: boolean;
 };
 
+// Solo texto visible — hrefs/keys se quedan igual que siempre para no tocar
+// rutas ni nada que dependa de ellas.
 const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Panel General" },
   { href: "/leads", label: "Nuevos leads", showBadge: true },
-  { href: "/inbox", label: "Bandeja omnicanal" },
+  { href: "/inbox", label: "Bandeja de Entrada" },
   { href: "/contactos", label: "Contactos / Leads" },
-  { href: "/pipeline", label: "Pipeline" },
-  { href: "/calendario", label: "Calendario y actividades" },
+  { href: "/pipeline", label: "Estado de los Leads" },
+  { href: "/calendario", label: "Actividades Planificadas" },
   { href: "/formularios", label: "Formularios" },
   { href: "/reportes", label: "Reportes" },
   { href: "/usuarios", label: "Usuarios y roles" },
@@ -27,14 +29,90 @@ const NAV_ITEMS: NavItem[] = [
 const VIEW_TITLES: Record<string, string> = {
   "/dashboard": "Panel General",
   "/leads": "Nuevos leads por asignar",
-  "/inbox": "Bandeja omnicanal",
+  "/inbox": "Bandeja de Entrada",
   "/contactos": "Contactos y leads",
-  "/pipeline": "Pipeline de oportunidades",
-  "/calendario": "Calendario y actividades",
+  "/pipeline": "Estado de los Leads",
+  "/calendario": "Actividades Planificadas",
   "/formularios": "Constructor de formularios",
   "/reportes": "Reportes",
   "/usuarios": "Usuarios y roles",
   "/perfil": "Mi perfil",
+};
+
+// Íconos de nav — trazo simple (currentColor), mismo patrón que el clip de
+// adjuntos que ya existía en /inbox. Sin librería nueva.
+function NavIcon({ children }: { children: React.ReactNode }) {
+  return (
+    <svg
+      width={16}
+      height={16}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ flexShrink: 0 }}
+    >
+      {children}
+    </svg>
+  );
+}
+
+const NAV_ICON_SHAPES: Record<string, React.ReactNode> = {
+  "/dashboard": (
+    <>
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </>
+  ),
+  "/leads": (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M3 7l9 6 9-6" />
+    </>
+  ),
+  "/inbox": (
+    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+  ),
+  "/contactos": (
+    <>
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </>
+  ),
+  "/pipeline": (
+    <>
+      <rect x="3" y="4" width="5" height="16" rx="1" />
+      <rect x="10" y="4" width="5" height="10" rx="1" />
+      <rect x="17" y="4" width="5" height="13" rx="1" />
+    </>
+  ),
+  "/calendario": (
+    <>
+      <rect x="3" y="4" width="18" height="17" rx="2" />
+      <path d="M16 2v4M8 2v4M3 10h18" />
+    </>
+  ),
+  "/formularios": (
+    <>
+      <rect x="5" y="4" width="14" height="17" rx="2" />
+      <path d="M9 3h6a1 1 0 0 1 1 1v2H8V4a1 1 0 0 1 1-1z" />
+      <path d="M9 12h6M9 16h6" />
+    </>
+  ),
+  "/reportes": <path d="M18 20V10M12 20V4M6 20v-6" />,
+  "/usuarios": (
+    <>
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </>
+  ),
 };
 
 export type AppShellUser = {
@@ -117,7 +195,7 @@ export default function AppShell({
       <div
         style={{
           background: "var(--color-sidebar-bg)",
-          padding: "22px 16px",
+          padding: "18px 14px",
           display: "flex",
           flexDirection: "column",
           gap: 4,
@@ -157,51 +235,67 @@ export default function AppShell({
           </div>
         </div>
 
-        {NAV_ITEMS.map((item) => {
-          const active = pathname === item.href;
-          const badge = item.showBadge ? newLeadsCount : null;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              style={{
-                padding: "10px 12px",
-                borderRadius: 2,
-                fontSize: 13.5,
-                fontWeight: 500,
-                cursor: "pointer",
-                // Active pill is white-on-blue (not red-on-blue): red and
-                // blue read as very different hues but have almost the
-                // same luminance, so a red pill barely registers as a
-                // distinct shape against the new blue sidebar. White gives
-                // the pill a real boundary; red text keeps "active" tied to
-                // the same red-means-primary language used everywhere else
-                // (buttons, badges, priority).
-                color: active ? "var(--color-red)" : "var(--color-cream)",
-                background: active ? "#fff" : "transparent",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <span>{item.label}</span>
-              {badge ? (
-                <span
-                  style={{
-                    background: "var(--color-red)",
-                    color: "#fff",
-                    fontSize: 10.5,
-                    fontWeight: 700,
-                    padding: "1px 7px",
-                    borderRadius: 10,
-                  }}
-                >
-                  {badge}
+        <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          {NAV_ITEMS.map((item) => {
+            const active = pathname === item.href;
+            const badge = item.showBadge ? newLeadsCount : null;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                style={{
+                  padding: "8px 12px 8px 9px",
+                  borderRadius: "0 6px 6px 0",
+                  borderLeft: active ? "3px solid var(--color-red)" : "3px solid transparent",
+                  fontSize: 13,
+                  fontWeight: active ? 600 : 500,
+                  cursor: "pointer",
+                  // Acento a la izquierda en vez de pastilla sólida — el
+                  // borde rojo funciona como marca de "activo" sin depender
+                  // de que el texto rojo se note sobre el azul del sidebar
+                  // (mismo problema de luminancia que antes: rojo y azul
+                  // tienen contraste de matiz pero casi el mismo brillo).
+                  // El texto activo pasa a blanco (no crema) para
+                  // diferenciarse, con un fondo apenas más claro detrás.
+                  color: active ? "#fff" : "var(--color-cream)",
+                  background: active ? "rgba(255,255,255,0.1)" : "transparent",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 8,
+                }}
+              >
+                <span style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+                  <NavIcon>{NAV_ICON_SHAPES[item.href]}</NavIcon>
+                  <span
+                    style={{
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {item.label}
+                  </span>
                 </span>
-              ) : null}
-            </Link>
-          );
-        })}
+                {badge ? (
+                  <span
+                    style={{
+                      background: "var(--color-red)",
+                      color: "#fff",
+                      fontSize: 10.5,
+                      fontWeight: 700,
+                      padding: "1px 7px",
+                      borderRadius: 999,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {badge}
+                  </span>
+                ) : null}
+              </Link>
+            );
+          })}
+        </div>
 
         <div
           style={{
@@ -274,33 +368,33 @@ export default function AppShell({
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "16px 28px",
+            padding: "13px 24px",
             borderBottom: "1px solid var(--color-border)",
             background: "var(--color-panel)",
           }}
         >
-          <h1 style={{ fontFamily: "var(--font-heading)", fontSize: 19, fontWeight: 600 }}>
+          <h1 style={{ fontFamily: "var(--font-heading)", fontSize: 17.5, fontWeight: 600 }}>
             {viewTitle}
           </h1>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div
               onClick={toggleDark}
               style={{
-                fontSize: 12.5,
+                fontSize: 12,
                 color: "var(--color-muted)",
                 cursor: "pointer",
                 border: "1px solid var(--color-border)",
-                padding: "6px 12px",
-                borderRadius: 2,
+                padding: "5px 11px",
+                borderRadius: 6,
               }}
             >
               {dark ? "☾ Modo oscuro" : "☀ Modo claro"}
             </div>
-            <div style={{ fontSize: 12.5, color: "var(--color-muted)" }}>{todayLabel}</div>
+            <div style={{ fontSize: 12, color: "var(--color-muted)" }}>{todayLabel}</div>
           </div>
         </div>
 
-        <div style={{ flex: 1, padding: "26px 28px", overflow: "auto" }}>{children}</div>
+        <div style={{ flex: 1, padding: "22px 24px", overflow: "auto" }}>{children}</div>
       </div>
     </div>
   );
