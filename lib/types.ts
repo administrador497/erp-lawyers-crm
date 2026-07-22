@@ -163,30 +163,42 @@ export type FormularioDetail = {
   campos: FormularioCampo[];
 };
 
-export type ReportChannelBar = {
+export type ReportLeadsPorCanal = {
   canal_origen: string;
   label: string;
-  value: number;
+  count: number;
 };
 
-export type ReportFunnelStage = {
-  label: string;
-  value: number;
+export type ReportTasaConversion = {
+  ganados: number;
+  totalConsiderado: number;
   pct: number;
 };
 
-export type ReportUserSla = {
+export type ReportMotivoPerdida = {
+  motivo: string;
+  count: number;
+};
+
+export type ReportLeadsPorServicio = {
+  servicio: string;
+  count: number;
+};
+
+export type ReportDesempenoUsuario = {
   usuario_id: string;
   nombre: string;
   leads_asignados: number;
-  tiempo_promedio_horas: number | null;
+  tiempo_respuesta_promedio_horas: number | null;
+  actividades_atrasadas: number;
 };
 
 export type ReportsSummary = {
-  channelBars: ReportChannelBar[];
-  funnel: ReportFunnelStage[];
-  slaByUser: ReportUserSla[];
-  totalLeads: number;
+  leadsPorCanal: ReportLeadsPorCanal[];
+  tasaConversion: ReportTasaConversion;
+  motivosPerdida: ReportMotivoPerdida[];
+  leadsPorServicio: ReportLeadsPorServicio[];
+  desempenoPorUsuario: ReportDesempenoUsuario[];
 };
 
 export type RolRow = {
