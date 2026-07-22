@@ -6,6 +6,15 @@ import { createClient } from "../../../lib/supabase/client";
 import { formatIngreso, priorityStyle } from "../../../lib/format";
 import { useToast } from "../../../components/useToast";
 import ToastHost from "../../../components/ToastHost";
+import {
+  radius,
+  avatarStyle,
+  initials,
+  badgeStyle,
+  inputStyle,
+  buttonPrimaryStyle,
+  buttonSecondaryStyle,
+} from "../../../components/uiTokens";
 import type { AssignableUsuario, NewLeadRow } from "../../../lib/types";
 
 export default function LeadsInboxPage() {
@@ -242,18 +251,7 @@ export default function LeadsInboxPage() {
 
       {isAdmin && seleccionados.size > 0 ? (
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-          <button
-            onClick={() => setShowDeleteModal(true)}
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              padding: "9px 16px",
-              border: "none",
-              borderRadius: 2,
-              background: "var(--color-red)",
-              color: "#fff",
-            }}
-          >
+          <button onClick={() => setShowDeleteModal(true)} style={buttonPrimaryStyle}>
             Eliminar seleccionados ({seleccionados.size})
           </button>
         </div>
@@ -263,7 +261,7 @@ export default function LeadsInboxPage() {
         style={{
           background: "var(--color-panel)",
           border: "1px solid var(--color-border)",
-          borderRadius: 2,
+          borderRadius: radius.lg,
           overflow: "hidden",
         }}
       >
@@ -272,8 +270,8 @@ export default function LeadsInboxPage() {
             display: "grid",
             gridTemplateColumns: gridColumns,
             gap: 8,
-            padding: "12px 16px",
-            fontSize: 11.5,
+            padding: "10px 16px",
+            fontSize: 11,
             fontWeight: 700,
             color: "var(--color-blue)",
             textTransform: "uppercase",
@@ -316,7 +314,7 @@ export default function LeadsInboxPage() {
                   display: "grid",
                   gridTemplateColumns: gridColumns,
                   gap: 8,
-                  padding: "14px 16px",
+                  padding: "9px 16px",
                   borderTop: "1px solid var(--color-border)",
                   alignItems: "center",
                 }}
@@ -329,28 +327,26 @@ export default function LeadsInboxPage() {
                     style={{ cursor: "pointer" }}
                   />
                 ) : null}
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <div style={{ fontSize: 13.5, fontWeight: 600 }}>{lead.nombre_completo}</div>
-                    {nuevosIds.has(lead.id) ? (
-                      <span
+                <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                  <div style={avatarStyle(30)}>{initials(lead.nombre_completo)}</div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <div
                         style={{
-                          fontSize: 9.5,
-                          fontWeight: 700,
-                          padding: "1px 6px",
-                          borderRadius: 10,
-                          background: "var(--color-red)",
-                          color: "#fff",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.02em",
+                          fontSize: 13,
+                          fontWeight: 600,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
                         }}
                       >
-                        Nuevo
-                      </span>
-                    ) : null}
-                  </div>
-                  <div style={{ fontSize: 11.5, color: "var(--color-muted)" }}>
-                    {[lead.correo, lead.telefono].filter(Boolean).join(" · ")}
+                        {lead.nombre_completo}
+                      </div>
+                      {nuevosIds.has(lead.id) ? <span style={badgeStyle("alert")}>Nuevo</span> : null}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--color-muted)" }}>
+                      {[lead.correo, lead.telefono].filter(Boolean).join(" · ")}
+                    </div>
                   </div>
                 </div>
                 <div style={{ fontSize: 12.5 }}>{lead.canal_origen}</div>
@@ -361,10 +357,10 @@ export default function LeadsInboxPage() {
                 <div>
                   <span
                     style={{
-                      fontSize: 11,
+                      fontSize: 10.5,
                       fontWeight: 700,
-                      padding: "3px 9px",
-                      borderRadius: 10,
+                      padding: "2px 8px",
+                      borderRadius: radius.pill,
                       background: prio.bg,
                       color: prio.color,
                     }}
@@ -378,14 +374,7 @@ export default function LeadsInboxPage() {
                       defaultValue=""
                       disabled={assigningId === lead.id}
                       onChange={(e) => assignLead(lead.id, e.target.value)}
-                      style={{
-                        fontSize: 12,
-                        padding: "6px 8px",
-                        border: "1px solid var(--color-border)",
-                        borderRadius: 2,
-                        background: "var(--color-bg)",
-                        color: "var(--color-text)",
-                      }}
+                      style={{ ...inputStyle, width: "auto", padding: "6px 8px", fontSize: 12 }}
                     >
                       <option value="">Asignar a…</option>
                       {assignableUsers.map((u) => (
@@ -397,14 +386,7 @@ export default function LeadsInboxPage() {
                   ) : null}
                   <button
                     onClick={() => router.push(`/inbox?lead=${lead.id}`)}
-                    style={{
-                      fontSize: 12,
-                      padding: "6px 10px",
-                      border: "none",
-                      borderRadius: 2,
-                      background: "var(--color-red)",
-                      color: "#fff",
-                    }}
+                    style={{ ...buttonPrimaryStyle, padding: "6px 12px", fontSize: 12 }}
                   >
                     Responder
                   </button>
@@ -432,7 +414,7 @@ export default function LeadsInboxPage() {
               width: 360,
               background: "var(--color-panel)",
               border: "1px solid var(--color-border)",
-              borderRadius: 2,
+              borderRadius: radius.lg,
               padding: 24,
               boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
             }}
@@ -448,33 +430,13 @@ export default function LeadsInboxPage() {
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-              <button
-                onClick={() => setShowDeleteModal(false)}
-                disabled={deletingLeads}
-                style={{
-                  fontSize: 13,
-                  padding: "9px 16px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 2,
-                  background: "var(--color-panel)",
-                  color: "var(--color-text)",
-                }}
-              >
+              <button onClick={() => setShowDeleteModal(false)} disabled={deletingLeads} style={buttonSecondaryStyle}>
                 Cancelar
               </button>
               <button
                 onClick={eliminarSeleccionados}
                 disabled={deletingLeads}
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  padding: "9px 16px",
-                  border: "none",
-                  borderRadius: 2,
-                  background: "var(--color-red)",
-                  color: "#fff",
-                  opacity: deletingLeads ? 0.6 : 1,
-                }}
+                style={{ ...buttonPrimaryStyle, opacity: deletingLeads ? 0.6 : 1 }}
               >
                 {deletingLeads ? "Eliminando…" : "Eliminar"}
               </button>
